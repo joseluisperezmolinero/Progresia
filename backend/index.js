@@ -15,6 +15,7 @@ app.use(express.json());
 // ==========================================
 app.use('/api/usuarios', require('./routes/usuario.routes'));
 app.use('/api/ejercicios', require('./routes/ejercicio.routes'));
+app.use('/api/entrenamientos', require('./routes/entrenamiento.routes')); 
 
 // Definimos el puerto
 const PORT = process.env.PORT || 5000;
