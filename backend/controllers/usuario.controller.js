@@ -67,7 +67,7 @@ const obtenerPerfil = async (req, res) => {
     try {
         const perfil = await pool.query(
             "SELECT id_usuario, nombre, email, fecha_registro, es_admin FROM usuario WHERE id_usuario = $1",
-            [req.usuario.id_usuario] // ✅ CORREGIDO
+            [req.usuario] 
         );
 
         if (perfil.rows.length === 0) {

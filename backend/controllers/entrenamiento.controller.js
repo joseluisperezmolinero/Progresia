@@ -85,12 +85,14 @@ const obtenerEntrenamientoPorId = async (req, res) => {
             return res.status(404).json({ error: "Entrenamiento no encontrado o no tienes permiso para verlo" });
         }
 
-        // Formateamos la respuesta para que el Frontend la entienda a la perfección
+    
+       // Formateamos la respuesta para que el Frontend la entienda a la perfección
         const entrenamientoCompleto = {
             id_entrenamiento: resultado.rows.id_entrenamiento,
             nombre: resultado.rows.nombre_rutina,
             objetivo: resultado.rows.objetivo,
             es_predeterminado: resultado.rows.es_predeterminado,
+        
             // Usamos .map para meter todos los ejercicios dentro de una lista
             ejercicios: resultado.rows.map(fila => ({
                 id_ejercicio: fila.id_ejercicio,
