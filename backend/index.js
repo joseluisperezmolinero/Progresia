@@ -17,6 +17,7 @@ app.use('/api/usuarios', require('./routes/usuario.routes'));
 app.use('/api/ejercicios', require('./routes/ejercicio.routes'));
 app.use('/api/entrenamientos', require('./routes/entrenamiento.routes')); 
 app.use('/api/sesiones', require('./routes/sesion.routes'));
+app.use('/api/metricas', require('./routes/metricas.routes'));
 
 // Definimos el puerto
 const PORT = process.env.PORT || 5000;

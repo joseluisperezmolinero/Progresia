@@ -134,9 +134,73 @@ const finalizarSesion = async (req, res) => {
     }
 };
 
+// CU-09: Consultar el historial de sesiones de entrenamiento del usuario
+const obtenerHistorial = async (req, res) => {
+    try {
+        // Hacemos un LEFT JOIN por si en el futuro permites "Entrenamientos Libres" sin plantilla
+       const consulta = `
+            SELECT 
+                s.id_sesion, 
+                s.fecha_inicio, 
+                s.fecha_fin, 
+                s.notas, 
+                e.nombre AS nombre_rutina,
+                -- Magia SQL: Restamos fin menos inicio, lo pasamos a segundos (EPOCH) y dividimos entre 60 para tener minutos
+                ROUND(EXTRACT(EPOCH FROM (s.fecha_fin - s.fecha_inicio)) / 60) AS duracion_minutos
+            FROM sesion_entrenamiento s
+            LEFT JOIN entrenamiento e ON s.id_entrenamiento = e.id_entrenamiento
+            WHERE s.id_usuario = $1
+            ORDER BY s.fecha_inicio DESC
+        `;
+
+        const historial = await pool.query(consulta, [req.usuario]);
+
+        // Como queremos devolver una LISTA entera, enviamos todos los .rows
+        res.json(historial.rows);
+
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send("Error en el servidor al obtener el historial");
+    }
+};
+
+// CU-09 (Parte 2): Ver el detalle de todas las series de una sesión concreta
+const obtenerDetalleSesion = async (req, res) => {
+    try {
+        const { id_sesion } = req.params;
+
+        // Buscamos todas las series de esa sesión y las unimos con la tabla de ejercicios
+        // para saber el nombre del ejercicio (ej: "Press de Banca")
+        const consulta = `
+            SELECT 
+                rs.id_serie,
+                rs.num_serie, 
+                rs.peso_kg, 
+                rs.repeticiones, 
+                rs.rpe_fatiga, 
+                e.nombre AS nombre_ejercicio,
+                e.grupo_muscular
+            FROM registro_serie rs
+            JOIN ejercicio e ON rs.id_ejercicio = e.id_ejercicio
+            WHERE rs.id_sesion = $1
+            ORDER BY rs.id_ejercicio, rs.num_serie ASC
+        `;
+        
+        const detalle = await pool.query(consulta, [id_sesion]);
+
+        res.json(detalle.rows); // Devolvemos la lista de series
+
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send("Error en el servidor al obtener el detalle de la sesión");
+    }
+};
+
 module.exports = {
     iniciarSesion,
     registrarSerie,
     obtenerUltimaMarca,
-    finalizarSesion
+    finalizarSesion,
+    obtenerHistorial,
+    obtenerDetalleSesion
 };
