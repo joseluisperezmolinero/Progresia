@@ -5,14 +5,14 @@ const jwt = require('jsonwebtoken');
 // REGISTRAR USUARIO
 const registrarUsuario = async (req, res) => {
     try {
-        const { nombre, email, password } = req.body;
+        const { nombre,apellidos, email, password } = req.body;
 
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
         const nuevoUsuario = await pool.query(
-            "INSERT INTO usuario (nombre, email, password_hash) VALUES ($1, $2, $3) RETURNING id_usuario, nombre, email",
-            [nombre, email, passwordHash]
+            "INSERT INTO usuario (nombre,apellidos, email, password_hash) VALUES ($1, $2, $3, $4) RETURNING id_usuario, nombre,apellidos, email",
+            [nombre,apellidos, email, passwordHash]
         );
 
         // ✅ CORREGIDO
@@ -66,7 +66,7 @@ const iniciarSesion = async (req, res) => {
 const obtenerPerfil = async (req, res) => {
     try {
         const perfil = await pool.query(
-            "SELECT id_usuario, nombre, email, fecha_registro, es_admin FROM usuario WHERE id_usuario = $1",
+            "SELECT id_usuario, nombre,apellidos, email, fecha_registro, es_admin FROM usuario WHERE id_usuario = $1",
             [req.usuario] 
         );
 

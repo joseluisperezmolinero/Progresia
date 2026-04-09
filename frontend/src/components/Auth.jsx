@@ -1,12 +1,13 @@
 import { useState } from 'react';
 
-export default function Auth() {
+export default function Auth({ onLoginSuccess }) {
   // Estado para saber si mostramos Login o Registro
   const [isLogin, setIsLogin] = useState(true);
 
   // Estado para guardar lo que el usuario escribe
   const [formData, setFormData] = useState({
     nombre: '',
+    apellidos: '',
     email: '',
     password: ''
   });
@@ -39,6 +40,7 @@ const handleSubmit = async (e) => {
           // Guardamos el token en la caja fuerte del navegador (localStorage)
           localStorage.setItem('token', datos.token);
           alert('¡Login exitoso! Ya tienes tu llave de acceso.');
+          onLoginSuccess(datos.token); // Enviamos el token hacia arriba para cambiar de pantalla
           console.log('Token guardado:', datos.token);
           // Más adelante, aquí le diremos que navegue al Dashboard
         } else {
@@ -69,20 +71,35 @@ const handleSubmit = async (e) => {
             
             {/* Si NO es login (es decir, es registro), mostramos el campo Nombre */}
             {!isLogin && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nombre</label>
-                <div className="mt-1">
-                  <input
-                    name="nombre"
-                    type="text"
-                    required={!isLogin}
-                    onChange={handleChange}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-            )}
+  <div className="space-y-6">
+    <div>
+      <label className="block text-sm font-medium text-gray-700">Nombre</label>
+      <div className="mt-1">
+        <input
+          name="nombre"
+          type="text"
+          required={!isLogin}
+          onChange={handleChange}
+          className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+    </div>
 
+    {/* NUEVO: Campo Apellidos */}
+    <div>
+      <label className="block text-sm font-medium text-gray-700">Apellidos</label>
+      <div className="mt-1">
+        <input
+          name="apellidos"
+          type="text"
+          required={!isLogin}
+          onChange={handleChange}
+          className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+    </div>
+  </div>
+)}
             <div>
               <label className="block text-sm font-medium text-gray-700">Correo electrónico</label>
               <div className="mt-1">

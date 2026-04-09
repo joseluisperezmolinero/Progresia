@@ -1,6 +1,11 @@
 const pool = require('../db');
 
-// CU-08: Iniciar una nueva sesión de entrenamiento
+const toNullableNumber = (value) => {
+    if (value === '' || value === null || value === undefined) return null;
+    const num = Number(value);
+    return Number.isNaN(num) ? null : num;
+};
+
 const iniciarSesion = async (req, res) => {
     try {
         const { id_entrenamiento, notas } = req.body;
@@ -11,65 +16,152 @@ const iniciarSesion = async (req, res) => {
             VALUES ($1, $2, NOW(), $3) 
             RETURNING *`,
             [
-                req.usuario, 
-                id_entrenamiento || null, 
+                req.usuario,
+                id_entrenamiento || null,
                 notas || null
             ]
         );
 
         res.status(201).json({
-            mensaje: "Sesión iniciada con éxito. ¡A darle duro!",
+            mensaje: 'Sesión iniciada con éxito. ¡A darle duro!',
             sesion: nuevaSesion.rows[0]
         });
 
     } catch (error) {
         console.error(error.message);
-        res.status(500).send("Error en el servidor al iniciar la sesión");
+        res.status(500).send('Error en el servidor al iniciar la sesión');
     }
 };
 
-// CU-08 (Parte 2): Registrar una serie concreta dentro de la sesión activa
 const registrarSerie = async (req, res) => {
     try {
-        const { id_sesion } = req.params; // Lo sacaremos de la URL (ej: /api/sesiones/6/series)
-        const { id_ejercicio, num_serie, peso_kg, repeticiones, rpe_fatiga } = req.body;
+        const { id_sesion } = req.params;
+        const {
+            id_ejercicio,
+            num_serie,
+            peso_kg,
+            repeticiones,
+            duracion_segundos,
+            distancia_metros,
+            rpe_fatiga
+        } = req.body;
 
-        // Validamos que nos manden los datos mínimos obligatorios
-        if (!id_ejercicio || !num_serie || peso_kg == null || repeticiones == null) {
-            return res.status(400).json({ error: "Faltan datos obligatorios para registrar la serie" });
+        if (!id_ejercicio || !num_serie || rpe_fatiga == null) {
+            return res.status(400).json({ error: 'Faltan datos obligatorios para registrar la serie' });
         }
 
-        // Insertamos la serie en la base de datos
+        const checkSesion = await pool.query(
+            `SELECT id_sesion
+             FROM sesion_entrenamiento
+             WHERE id_sesion = $1 AND id_usuario = $2`,
+            [id_sesion, req.usuario]
+        );
+
+        if (checkSesion.rows.length === 0) {
+            return res.status(404).json({ error: 'Sesión no encontrada o no autorizada' });
+        }
+
+        const infoEjercicio = await pool.query(
+            `SELECT 
+                id_ejercicio,
+                nombre,
+                tipo_registro,
+                usa_peso,
+                usa_repeticiones,
+                usa_duracion,
+                usa_distancia
+             FROM ejercicio
+             WHERE id_ejercicio = $1`,
+            [id_ejercicio]
+        );
+
+        if (infoEjercicio.rows.length === 0) {
+            return res.status(404).json({ error: 'Ejercicio no encontrado' });
+        }
+
+        const ejercicio = infoEjercicio.rows[0];
+
+        const serieFinal = Number(num_serie);
+        const rpeFinal = Number(rpe_fatiga);
+        const pesoFinal = ejercicio.usa_peso ? toNullableNumber(peso_kg) : null;
+        const repsFinal = ejercicio.usa_repeticiones ? toNullableNumber(repeticiones) : null;
+        const duracionFinal = ejercicio.usa_duracion ? toNullableNumber(duracion_segundos) : null;
+        const distanciaFinal = ejercicio.usa_distancia ? toNullableNumber(distancia_metros) : null;
+
+        if (Number.isNaN(serieFinal) || serieFinal <= 0) {
+            return res.status(400).json({ error: 'El número de serie no es válido' });
+        }
+
+        if (Number.isNaN(rpeFinal) || rpeFinal < 1 || rpeFinal > 10) {
+            return res.status(400).json({ error: 'El RPE debe estar entre 1 y 10' });
+        }
+
+        if (ejercicio.usa_peso && (pesoFinal == null || pesoFinal < 0)) {
+            return res.status(400).json({ error: 'El peso es obligatorio y debe ser mayor o igual a 0' });
+        }
+
+        if (ejercicio.usa_repeticiones && (repsFinal == null || repsFinal <= 0)) {
+            return res.status(400).json({ error: 'Las repeticiones son obligatorias y deben ser mayores que 0' });
+        }
+
+        if (ejercicio.usa_duracion && (duracionFinal == null || duracionFinal <= 0)) {
+            return res.status(400).json({ error: 'La duración es obligatoria y debe ser mayor que 0' });
+        }
+
+        if (ejercicio.usa_distancia && (distanciaFinal == null || distanciaFinal <= 0)) {
+            return res.status(400).json({ error: 'La distancia es obligatoria y debe ser mayor que 0' });
+        }
+
         const nuevaSerie = await pool.query(
-            `INSERT INTO registro_serie 
-            (id_sesion, id_ejercicio, num_serie, peso_kg, repeticiones, rpe_fatiga) 
-            VALUES ($1, $2, $3, $4, $5, $6) 
-            RETURNING *`,
-            [id_sesion, id_ejercicio, num_serie, peso_kg, repeticiones, rpe_fatiga || null]
+            `INSERT INTO registro_serie
+                (id_sesion, id_ejercicio, num_serie, peso_kg, repeticiones, duracion_segundos, distancia_metros, rpe_fatiga)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING *`,
+            [
+                id_sesion,
+                id_ejercicio,
+                serieFinal,
+                pesoFinal,
+                repsFinal,
+                duracionFinal,
+                distanciaFinal,
+                rpeFinal
+            ]
         );
 
         res.status(201).json({
-            mensaje: `Serie ${num_serie} registrada correctamente`,
-            serie: nuevaSerie.rows
+            mensaje: `Serie ${serieFinal} registrada correctamente`,
+            serie: nuevaSerie.rows[0]
         });
 
     } catch (error) {
-        console.error(error.message);
-        res.status(500).send("Error en el servidor al registrar la serie");
+        console.error('Error al registrar la serie:', error.message);
+        res.status(500).json({
+            error: 'Error en el servidor al registrar la serie',
+            detalle: error.message
+        });
     }
 };
 
-// CU-10: Obtener la última marca de un ejercicio y generar sugerencia inteligente
 const obtenerUltimaMarca = async (req, res) => {
     try {
         const { id_ejercicio } = req.params;
         const id_usuario = req.usuario;
 
-        // Buscamos la última serie de este ejercicio que hizo este usuario específico
         const consulta = `
-            SELECT rs.peso_kg, rs.repeticiones, rs.rpe_fatiga, se.fecha_inicio
+            SELECT 
+                rs.peso_kg,
+                rs.repeticiones,
+                rs.duracion_segundos,
+                rs.distancia_metros,
+                rs.rpe_fatiga,
+                se.fecha_inicio,
+                e.nombre,
+                e.grupo_muscular,
+                e.tipo_registro
             FROM registro_serie rs
             JOIN sesion_entrenamiento se ON rs.id_sesion = se.id_sesion
+            JOIN ejercicio e ON rs.id_ejercicio = e.id_ejercicio
             WHERE rs.id_ejercicio = $1 AND se.id_usuario = $2
             ORDER BY se.fecha_inicio DESC, rs.num_serie DESC
             LIMIT 1;
@@ -77,23 +169,30 @@ const obtenerUltimaMarca = async (req, res) => {
 
         const resultado = await pool.query(consulta, [id_ejercicio, id_usuario]);
 
-        // Si es la primera vez que hace el ejercicio, no hay historial
         if (resultado.rows.length === 0) {
-            return res.json({ 
-                mensaje: "Primera vez haciendo este ejercicio. ¡Encuentra tu peso base!",
-                sugerencia: "Busca un peso con el que puedas hacer entre 8 y 12 repeticiones sintiendo un esfuerzo de 7-8/10."
+            return res.json({
+                mensaje: 'Primera vez haciendo este ejercicio.',
+                sugerencia: 'Registra una primera marca base para empezar a comparar.'
             });
         }
 
         const ultimaMarca = resultado.rows[0];
-        let sugerencia = "Mantén el peso e intenta sacar una repetición más."; // Sugerencia por defecto
+        let sugerencia = 'Intenta igualar o mejorar ligeramente tu última marca.';
 
-        // LÓGICA DE SOBRECARGA PROGRESIVA BÁSICA
-        // Si hizo muchas repeticiones y no le costó mucho (RPE <= 7 o 8), le pedimos que suba peso
-        if (ultimaMarca.repeticiones >= 10 && ultimaMarca.rpe_fatiga <= 8) {
-            sugerencia = `¡Vas sobrado! Sube el peso a ${parseFloat(ultimaMarca.peso_kg) + 2.5} kg.`;
-        } else if (ultimaMarca.rpe_fatiga >= 9 && ultimaMarca.repeticiones < 8) {
-            sugerencia = "La última vez te costó bastante. Mantén el peso o bájalo un poco si hoy no te sientes al 100%.";
+        if (ultimaMarca.tipo_registro === 'peso_reps') {
+            if (ultimaMarca.repeticiones >= 10 && ultimaMarca.rpe_fatiga <= 8) {
+                sugerencia = `¡Vas sobrado! Sube el peso a ${parseFloat(ultimaMarca.peso_kg || 0) + 2.5} kg.`;
+            } else if (ultimaMarca.rpe_fatiga >= 9 && ultimaMarca.repeticiones < 8) {
+                sugerencia = 'La última vez te costó bastante. Mantén el peso o bájalo un poco.';
+            } else {
+                sugerencia = 'Mantén el peso e intenta sacar una repetición más.';
+            }
+        } else if (ultimaMarca.tipo_registro === 'reps') {
+            sugerencia = 'Intenta mejorar tu marca con 1-2 repeticiones más manteniendo la técnica.';
+        } else if (ultimaMarca.tipo_registro === 'duracion') {
+            sugerencia = 'Intenta aumentar un poco el tiempo o mantenerlo con menor sensación de esfuerzo.';
+        } else if (ultimaMarca.tipo_registro === 'distancia_duracion') {
+            sugerencia = 'Intenta recorrer más distancia en el mismo tiempo o repetir la distancia con menos fatiga.';
         }
 
         res.json({
@@ -103,49 +202,79 @@ const obtenerUltimaMarca = async (req, res) => {
 
     } catch (error) {
         console.error(error.message);
-        res.status(500).send("Error en el servidor al calcular la sugerencia");
+        res.status(500).send('Error en el servidor al calcular la sugerencia');
     }
 };
 
-// CU-08 (Parte 3): Finalizar la sesión de entrenamiento
 const finalizarSesion = async (req, res) => {
     try {
         const { id_sesion } = req.params;
+        const { notas } = req.body;
 
-        // Actualizamos la sesión para ponerle la fecha de fin exacta (NOW())
-        // Usamos req.usuario para asegurar que nadie cierra la sesión de otro
         const sesionFinalizada = await pool.query(
-            "UPDATE sesion_entrenamiento SET fecha_fin = NOW() WHERE id_sesion = $1 AND id_usuario = $2 RETURNING *",
-            [id_sesion, req.usuario]
+            `UPDATE sesion_entrenamiento
+             SET fecha_fin = NOW(), notas = $1
+             WHERE id_sesion = $2 AND id_usuario = $3
+             RETURNING *`,
+            [notas || null, id_sesion, req.usuario]
         );
 
         if (sesionFinalizada.rows.length === 0) {
-            return res.status(404).json({ error: "Sesión no encontrada o no autorizada" });
+            return res.status(404).json({ error: 'Sesión no encontrada o no autorizada' });
         }
 
         res.json({
-            mensaje: "¡Entrenamiento finalizado! Buen trabajo, a descansar.",
+            mensaje: '¡Entrenamiento finalizado! Buen trabajo, a descansar.',
             sesion: sesionFinalizada.rows[0]
         });
 
     } catch (error) {
         console.error(error.message);
-        res.status(500).send("Error en el servidor al finalizar la sesión");
+        res.status(500).send('Error en el servidor al finalizar la sesión');
     }
 };
 
-// CU-09: Consultar el historial de sesiones de entrenamiento del usuario
+const eliminarSesion = async (req, res) => {
+    try {
+        const { id_sesion } = req.params;
+        const id_usuario = req.usuario;
+
+        await pool.query(
+            `DELETE FROM registro_serie 
+             WHERE id_sesion = $1 
+             AND id_sesion IN (
+                SELECT id_sesion FROM sesion_entrenamiento WHERE id_usuario = $2
+             )`,
+            [id_sesion, id_usuario]
+        );
+
+        const resultado = await pool.query(
+            `DELETE FROM sesion_entrenamiento 
+             WHERE id_sesion = $1 AND id_usuario = $2`,
+            [id_sesion, id_usuario]
+        );
+
+        if (resultado.rowCount === 0) {
+            return res.status(404).json({ error: 'Sesión no encontrada o no autorizada' });
+        }
+
+        res.json({ mensaje: 'Sesión cancelada y eliminada correctamente' });
+
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Error en el servidor al eliminar la sesión');
+    }
+};
+
 const obtenerHistorial = async (req, res) => {
     try {
-        // Hacemos un LEFT JOIN por si en el futuro permites "Entrenamientos Libres" sin plantilla
-       const consulta = `
+        const consulta = `
             SELECT 
                 s.id_sesion, 
                 s.fecha_inicio, 
                 s.fecha_fin, 
                 s.notas, 
                 e.nombre AS nombre_rutina,
-                -- Magia SQL: Restamos fin menos inicio, lo pasamos a segundos (EPOCH) y dividimos entre 60 para tener minutos
                 ROUND(EXTRACT(EPOCH FROM (s.fecha_fin - s.fecha_inicio)) / 60) AS duracion_minutos
             FROM sesion_entrenamiento s
             LEFT JOIN entrenamiento e ON s.id_entrenamiento = e.id_entrenamiento
@@ -154,45 +283,47 @@ const obtenerHistorial = async (req, res) => {
         `;
 
         const historial = await pool.query(consulta, [req.usuario]);
-
-        // Como queremos devolver una LISTA entera, enviamos todos los .rows
         res.json(historial.rows);
 
     } catch (error) {
         console.error(error.message);
-        res.status(500).send("Error en el servidor al obtener el historial");
+        res.status(500).send('Error en el servidor al obtener el historial');
     }
 };
 
-// CU-09 (Parte 2): Ver el detalle de todas las series de una sesión concreta
 const obtenerDetalleSesion = async (req, res) => {
     try {
         const { id_sesion } = req.params;
 
-        // Buscamos todas las series de esa sesión y las unimos con la tabla de ejercicios
-        // para saber el nombre del ejercicio (ej: "Press de Banca")
         const consulta = `
             SELECT 
                 rs.id_serie,
-                rs.num_serie, 
-                rs.peso_kg, 
-                rs.repeticiones, 
-                rs.rpe_fatiga, 
+                rs.num_serie,
+                rs.peso_kg,
+                rs.repeticiones,
+                rs.duracion_segundos,
+                rs.distancia_metros,
+                rs.rpe_fatiga,
+
                 e.nombre AS nombre_ejercicio,
-                e.grupo_muscular
+                e.grupo_muscular,
+                e.tipo_registro,
+                e.usa_peso,
+                e.usa_repeticiones,
+                e.usa_duracion,
+                e.usa_distancia
             FROM registro_serie rs
             JOIN ejercicio e ON rs.id_ejercicio = e.id_ejercicio
             WHERE rs.id_sesion = $1
             ORDER BY rs.id_ejercicio, rs.num_serie ASC
         `;
-        
-        const detalle = await pool.query(consulta, [id_sesion]);
 
-        res.json(detalle.rows); // Devolvemos la lista de series
+        const detalle = await pool.query(consulta, [id_sesion]);
+        res.json(detalle.rows);
 
     } catch (error) {
         console.error(error.message);
-        res.status(500).send("Error en el servidor al obtener el detalle de la sesión");
+        res.status(500).send('Error en el servidor al obtener el detalle de la sesión');
     }
 };
 
@@ -201,6 +332,7 @@ module.exports = {
     registrarSerie,
     obtenerUltimaMarca,
     finalizarSesion,
+    eliminarSesion,
     obtenerHistorial,
     obtenerDetalleSesion
 };
