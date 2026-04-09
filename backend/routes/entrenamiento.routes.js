@@ -5,7 +5,8 @@ const {
   crearEntrenamiento,
   obtenerEntrenamientos,
   obtenerEntrenamientoPorId,
-  eliminarEntrenamiento
+  eliminarEntrenamiento,
+    actualizarEntrenamiento
 } = require('../controllers/entrenamiento.controller');
 
 // Crear rutina
@@ -19,5 +20,8 @@ router.get('/:id', auth, obtenerEntrenamientoPorId);
 
 // Eliminar una rutina
 router.delete('/:id', auth, eliminarEntrenamiento);
+
+// Actualizar una rutina
+router.put('/:id', auth, actualizarEntrenamiento);
 
 module.exports = router;

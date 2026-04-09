@@ -18,6 +18,7 @@ export default function SesionActiva({ idEntrenamiento, volverAMisRutinas }) {
   const [tiempoDescanso, setTiempoDescanso] = useState(0);
   const [descansando, setDescansando] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [imagenAmpliada, setImagenAmpliada] = useState(false);
 
   const sesionIniciada = useRef(false);
   const idSesionRef = useRef(null);
@@ -103,6 +104,7 @@ export default function SesionActiva({ idEntrenamiento, volverAMisRutinas }) {
 
   useEffect(() => {
     setImgError(false);
+    setImagenAmpliada(false);
     limpiarCampos();
   }, [indiceEjercicio]);
 
@@ -277,177 +279,225 @@ export default function SesionActiva({ idEntrenamiento, volverAMisRutinas }) {
   const ejercicio = rutina.ejercicios[indiceEjercicio];
 
   return (
-    <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-3xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-black text-gray-900">{rutina.nombre}</h1>
-          <p className="text-sm text-gray-400 font-medium mt-0.5">
-            Ejercicio {indiceEjercicio + 1} de {rutina.ejercicios.length}
-          </p>
-        </div>
-
-        <button
-          onClick={salirSinGuardar}
-          className="text-red-500 hover:text-red-700 font-bold border border-red-200 hover:border-red-400 hover:bg-red-50 px-4 py-2 rounded-xl transition-all text-sm"
-        >
-          Salir ✕
-        </button>
-      </div>
-
-      <div className="w-full bg-gray-100 h-2 rounded-full mb-6 overflow-hidden">
-        <div
-          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-          style={{ width: `${(indiceEjercicio / rutina.ejercicios.length) * 100}%` }}
-        />
-      </div>
-
-      {descansando ? (
-        <div className="text-center py-10 bg-blue-50 rounded-xl">
-          <p className="text-gray-500 font-bold mb-2 uppercase text-xs tracking-widest">Descanso</p>
-          <div className="text-6xl font-black text-blue-600 mb-4">
-            {Math.floor(tiempoDescanso / 60)}:{(tiempoDescanso % 60).toString().padStart(2, '0')}
+    <>
+      <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-3xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-black text-gray-900">{rutina.nombre}</h1>
+            <p className="text-sm text-gray-400 font-medium mt-0.5">
+              Ejercicio {indiceEjercicio + 1} de {rutina.ejercicios.length}
+            </p>
           </div>
-          <p className="text-gray-400 text-sm mb-4">
-            Próximo: <span className="font-bold text-gray-600">{ejercicio.nombre}</span>
-          </p>
-          <button onClick={() => setDescansando(false)} className="mt-2 bg-blue-600 text-white font-bold px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors">
-            Saltar descanso ⏭️
+
+          <button
+            onClick={salirSinGuardar}
+            className="text-red-500 hover:text-red-700 font-bold border border-red-200 hover:border-red-400 hover:bg-red-50 px-4 py-2 rounded-xl transition-all text-sm"
+          >
+            Salir ✕
           </button>
         </div>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <div className="relative w-full h-56 rounded-2xl overflow-hidden bg-gray-100 shadow-sm">
-            {ejercicio.imagen_url && !imgError ? (
-              <>
-                <img
-                  src={ejercicio.imagen_url}
-                  alt={ejercicio.nombre}
-                  className="w-full h-full object-cover"
-                  onError={() => setImgError(true)}
-                />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-5 py-4">
-                  <h3 className="text-white text-xl font-black">{ejercicio.nombre}</h3>
-                  {ejercicio.grupo_muscular && (
-                    <span className="text-white/70 text-xs font-bold uppercase tracking-widest">{ejercicio.grupo_muscular}</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
-                <span className="text-5xl">💪</span>
-                <h3 className="text-gray-700 font-black text-xl">{ejercicio.nombre}</h3>
-              </div>
-            )}
-          </div>
 
-          <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-            <h4 className="font-black text-gray-800 mb-5 text-lg">
-              Serie <span className="text-blue-600">{serieActual}</span> / {ejercicio.series_objetivo}
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-              {ejercicio.usa_peso && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400 font-bold uppercase">Peso (kg)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={peso}
-                    onChange={(e) => setPeso(e.target.value)}
-                    className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  />
-                </div>
-              )}
-
-              {ejercicio.usa_repeticiones && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400 font-bold uppercase">
-                    Reps {ejercicio.reps_objetivo_min && ejercicio.reps_objetivo_max ? `(${ejercicio.reps_objetivo_min}-${ejercicio.reps_objetivo_max})` : ''}
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="0"
-                    value={reps}
-                    onChange={(e) => setReps(e.target.value)}
-                    className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  />
-                </div>
-              )}
-
-              {ejercicio.usa_duracion && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400 font-bold uppercase">
-                    Duración (seg) {ejercicio.duracion_objetivo_segundos ? `(${ejercicio.duracion_objetivo_segundos}s)` : ''}
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="0"
-                    value={duracion}
-                    onChange={(e) => setDuracion(e.target.value)}
-                    className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  />
-                </div>
-              )}
-
-              {ejercicio.usa_distancia && (
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-400 font-bold uppercase">
-                    Distancia (m) {ejercicio.distancia_objetivo_metros ? `(${ejercicio.distancia_objetivo_metros}m)` : ''}
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="0"
-                    value={distancia}
-                    onChange={(e) => setDistancia(e.target.value)}
-                    className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                  />
-                </div>
-              )}
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-400 font-bold uppercase">RPE (1-10)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="8"
-                  value={rpe}
-                  onChange={(e) => manejarCambioRpe(e.target.value)}
-                  onBlur={manejarBlurRpe}
-                  className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={registrarSerie}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition-colors shadow-sm"
-              >
-                ✓ Registrar Serie
-              </button>
-
-              <button
-                onClick={saltarSerie}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-600 font-bold px-5 rounded-xl transition-colors"
-              >
-                Saltar
-              </button>
-            </div>
-          </div>
-
-          <textarea
-            placeholder="Anotaciones de la sesión"
-            className="w-full border border-gray-200 p-3 rounded-xl text-sm text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-            rows={2}
-            value={notas}
-            onChange={(e) => setNotas(e.target.value)}
+        <div className="w-full bg-gray-100 h-2 rounded-full mb-6 overflow-hidden">
+          <div
+            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+            style={{ width: `${(indiceEjercicio / rutina.ejercicios.length) * 100}%` }}
           />
         </div>
+
+        {descansando ? (
+          <div className="text-center py-10 bg-blue-50 rounded-xl">
+            <p className="text-gray-500 font-bold mb-2 uppercase text-xs tracking-widest">Descanso</p>
+            <div className="text-6xl font-black text-blue-600 mb-4">
+              {Math.floor(tiempoDescanso / 60)}:{(tiempoDescanso % 60).toString().padStart(2, '0')}
+            </div>
+            <p className="text-gray-400 text-sm mb-4">
+              Próximo: <span className="font-bold text-gray-600">{ejercicio.nombre}</span>
+            </p>
+            <button onClick={() => setDescansando(false)} className="mt-2 bg-blue-600 text-white font-bold px-6 py-2 rounded-xl hover:bg-blue-700 transition-colors">
+              Saltar descanso ⏭️
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6">
+            <div className="relative w-full h-56 rounded-2xl overflow-hidden bg-gray-100 shadow-sm">
+              {ejercicio.imagen_url && !imgError ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setImagenAmpliada(true)}
+                    className="w-full h-full text-left cursor-zoom-in"
+                    title="Pulsa para ampliar la imagen"
+                  >
+                    <img
+                      src={ejercicio.imagen_url}
+                      alt={ejercicio.nombre}
+                      className="w-full h-full object-cover"
+                      onError={() => setImgError(true)}
+                    />
+                  </button>
+
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-5 py-4 pointer-events-none">
+                    <h3 className="text-white text-xl font-black">{ejercicio.nombre}</h3>
+                    {ejercicio.grupo_muscular && (
+                      <span className="text-white/70 text-xs font-bold uppercase tracking-widest">{ejercicio.grupo_muscular}</span>
+                    )}
+                  </div>
+
+                  <div className="absolute top-3 right-3 bg-black/50 text-white text-xs font-bold px-3 py-1 rounded-full pointer-events-none">
+                    Pulsar para ampliar
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-400">
+                  <span className="text-5xl">💪</span>
+                  <h3 className="text-gray-700 font-black text-xl">{ejercicio.nombre}</h3>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+              <h4 className="font-black text-gray-800 mb-5 text-lg">
+                Serie <span className="text-blue-600">{serieActual}</span> / {ejercicio.series_objetivo}
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                {ejercicio.usa_peso && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400 font-bold uppercase">Peso (kg)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={peso}
+                      onChange={(e) => setPeso(e.target.value)}
+                      className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    />
+                  </div>
+                )}
+
+                {ejercicio.usa_repeticiones && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400 font-bold uppercase">
+                      Reps {ejercicio.reps_objetivo_min && ejercicio.reps_objetivo_max ? `(${ejercicio.reps_objetivo_min}-${ejercicio.reps_objetivo_max})` : ''}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="0"
+                      value={reps}
+                      onChange={(e) => setReps(e.target.value)}
+                      className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    />
+                  </div>
+                )}
+
+                {ejercicio.usa_duracion && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400 font-bold uppercase">
+                      Duración (seg) {ejercicio.duracion_objetivo_segundos ? `(${ejercicio.duracion_objetivo_segundos}s)` : ''}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="0"
+                      value={duracion}
+                      onChange={(e) => setDuracion(e.target.value)}
+                      className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    />
+                  </div>
+                )}
+
+                {ejercicio.usa_distancia && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-gray-400 font-bold uppercase">
+                      Distancia (m) {ejercicio.distancia_objetivo_metros ? `(${ejercicio.distancia_objetivo_metros}m)` : ''}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="0"
+                      value={distancia}
+                      onChange={(e) => setDistancia(e.target.value)}
+                      className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-400 font-bold uppercase">RPE (1-10)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="8"
+                    value={rpe}
+                    onChange={(e) => manejarCambioRpe(e.target.value)}
+                    onBlur={manejarBlurRpe}
+                    className="border border-gray-200 p-3 rounded-xl text-center font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={registrarSerie}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl transition-colors shadow-sm"
+                >
+                  ✓ Registrar Serie
+                </button>
+
+                <button
+                  onClick={saltarSerie}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-600 font-bold px-5 rounded-xl transition-colors"
+                >
+                  Saltar
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              placeholder="Anotaciones de la sesión"
+              className="w-full border border-gray-200 p-3 rounded-xl text-sm text-gray-600 outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+              rows={2}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+            />
+          </div>
+        )}
+      </div>
+
+      {imagenAmpliada && ejercicio.imagen_url && !imgError && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setImagenAmpliada(false)}
+        >
+          <div
+            className="relative max-w-5xl w-full max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setImagenAmpliada(false)}
+              className="absolute top-4 right-4 z-10 bg-black/60 hover:bg-black/80 text-white rounded-full w-10 h-10 text-xl font-bold"
+            >
+              ×
+            </button>
+
+            <div className="bg-gray-100 flex items-center justify-center max-h-[90vh]">
+              <img
+                src={ejercicio.imagen_url}
+                alt={ejercicio.nombre}
+                className="w-full max-h-[90vh] object-contain"
+              />
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-6 py-6">
+              <h3 className="text-white text-2xl font-black">{ejercicio.nombre}</h3>
+              {ejercicio.grupo_muscular && (
+                <p className="text-white/75 text-sm font-bold uppercase tracking-widest">{ejercicio.grupo_muscular}</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
-    </div>
+    </>
   );
 }

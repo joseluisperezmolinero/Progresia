@@ -9,7 +9,11 @@ const formatearSegundos = (segundos) => {
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 };
 
-export default function CrearEntrenamiento({ volverAMisRutinas }) {
+export default function CrearEntrenamiento({
+  volverAMisRutinas,
+  rutinaAEditar = null,
+  onGuardado = null
+}) {
   const [ejercicios, setEjercicios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [filtroGrupo, setFiltroGrupo] = useState('Todos');
@@ -17,6 +21,8 @@ export default function CrearEntrenamiento({ volverAMisRutinas }) {
 
   const [nombreRutina, setNombreRutina] = useState('');
   const [ejerciciosSeleccionados, setEjerciciosSeleccionados] = useState([]);
+
+  const esEdicion = Boolean(rutinaAEditar?.id_entrenamiento);
 
   useEffect(() => {
     const cargarEjercicios = async () => {
@@ -37,6 +43,26 @@ export default function CrearEntrenamiento({ volverAMisRutinas }) {
     };
     cargarEjercicios();
   }, []);
+
+  useEffect(() => {
+    if (rutinaAEditar) {
+      setNombreRutina(rutinaAEditar.nombre || '');
+      setEjerciciosSeleccionados(
+        (rutinaAEditar.ejercicios || []).map(ej => ({
+          ...ej,
+          series: ej.series_objetivo ?? ej.series_default ?? 3,
+          descanso: ej.tiempo_descanso_segundos ?? ej.descanso_default_segundos ?? 90,
+          reps_objetivo_min: ej.reps_objetivo_min ?? '',
+          reps_objetivo_max: ej.reps_objetivo_max ?? '',
+          duracion_objetivo_segundos: ej.duracion_objetivo_segundos ?? '',
+          distancia_objetivo_metros: ej.distancia_objetivo_metros ?? ''
+        }))
+      );
+    } else {
+      setNombreRutina('');
+      setEjerciciosSeleccionados([]);
+    }
+  }, [rutinaAEditar]);
 
   const construirEjercicioSeleccionado = (ejercicio) => ({
     ...ejercicio,
@@ -83,8 +109,14 @@ export default function CrearEntrenamiento({ volverAMisRutinas }) {
         }))
       };
 
-      const respuesta = await fetch('http://127.0.0.1:5000/api/entrenamientos', {
-        method: 'POST',
+      const url = esEdicion
+        ? `http://127.0.0.1:5000/api/entrenamientos/${rutinaAEditar.id_entrenamiento}`
+        : 'http://127.0.0.1:5000/api/entrenamientos';
+
+      const method = esEdicion ? 'PUT' : 'POST';
+
+      const respuesta = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -95,8 +127,12 @@ export default function CrearEntrenamiento({ volverAMisRutinas }) {
       const data = await respuesta.json().catch(() => null);
 
       if (respuesta.ok) {
-        alert('¡Rutina guardada con éxito! 💪');
-        volverAMisRutinas();
+        alert(esEdicion ? '¡Rutina actualizada con éxito! ✍️' : '¡Rutina guardada con éxito! 💪');
+        if (onGuardado) {
+          onGuardado();
+        } else {
+          volverAMisRutinas();
+        }
       } else {
         alert(data?.error || data?.detalle || 'Hubo un error al guardar.');
       }
@@ -140,8 +176,14 @@ export default function CrearEntrenamiento({ volverAMisRutinas }) {
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-gray-800 mb-1">Crear Nueva Rutina 📝</h2>
-          <p className="text-gray-500 text-sm">Pon nombre, elige ejercicios y configura objetivos según el tipo de ejercicio.</p>
+          <h2 className="text-2xl font-extrabold text-gray-800 mb-1">
+            {esEdicion ? 'Editar Rutina ✏️' : 'Crear Nueva Rutina 📝'}
+          </h2>
+          <p className="text-gray-500 text-sm">
+            {esEdicion
+              ? 'Modifica ejercicios y objetivos de una rutina ya creada.'
+              : 'Pon nombre, elige ejercicios y configura objetivos según el tipo de ejercicio.'}
+          </p>
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
@@ -157,7 +199,7 @@ export default function CrearEntrenamiento({ volverAMisRutinas }) {
             disabled={ejerciciosSeleccionados.length === 0 || nombreRutina.trim() === ''}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap shadow-md"
           >
-            Guardar Rutina
+            {esEdicion ? 'Guardar cambios' : 'Guardar Rutina'}
           </button>
         </div>
       </div>
@@ -201,70 +243,66 @@ export default function CrearEntrenamiento({ volverAMisRutinas }) {
         <div className="text-center py-10 text-gray-500 font-semibold animate-pulse">
           Cargando catálogo... ⏳
         </div>
+      ) : ejerciciosFiltrados.length === 0 ? (
+        <div className="text-center py-10 text-gray-400">
+          <p className="text-4xl mb-3">🔍</p>
+          <p className="font-semibold">No hay ejercicios que coincidan con tu búsqueda.</p>
+        </div>
       ) : (
-        <>
-          {ejerciciosFiltrados.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <p className="text-4xl mb-3">🔍</p>
-              <p className="font-semibold">No hay ejercicios que coincidan con tu búsqueda.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {ejerciciosFiltrados.map((ejercicio) => {
-                const estaSeleccionado = ejerciciosSeleccionados.some(e => e.id_ejercicio === ejercicio.id_ejercicio);
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {ejerciciosFiltrados.map((ejercicio) => {
+            const estaSeleccionado = ejerciciosSeleccionados.some(e => e.id_ejercicio === ejercicio.id_ejercicio);
 
-                return (
-                  <div
-                    key={ejercicio.id_ejercicio}
-                    onClick={() => toggleEjercicio(ejercicio)}
-                    className={`relative rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer ${
-                      estaSeleccionado
-                        ? 'ring-4 ring-blue-500 shadow-md transform scale-[0.98]'
-                        : 'border border-gray-200 hover:border-blue-200'
-                    }`}
-                  >
-                    {estaSeleccionado && (
-                      <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 z-10 shadow-md">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    )}
-
-                    <div className="h-28 bg-gray-100 relative overflow-hidden">
-                      {ejercicio.imagen_url ? (
-                        <img
-                          src={ejercicio.imagen_url}
-                          alt={ejercicio.nombre}
-                          className={`w-full h-full object-cover transition-opacity ${estaSeleccionado ? 'opacity-75' : ''}`}
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">💪</div>
-                      )}
-                    </div>
-
-                    <div className="p-3 bg-white">
-                      <h3 className="font-bold text-gray-800 text-xs leading-tight mb-1.5">{ejercicio.nombre}</h3>
-                      <div className="flex flex-wrap gap-1">
-                        {ejercicio.grupo_muscular && (
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colorGrupo(ejercicio.grupo_muscular)}`}>
-                            {ejercicio.grupo_muscular}
-                          </span>
-                        )}
-                        {ejercicio.tipo_registro && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                            {etiquetaRegistro(ejercicio.tipo_registro)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+            return (
+              <div
+                key={ejercicio.id_ejercicio}
+                onClick={() => toggleEjercicio(ejercicio)}
+                className={`relative rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer ${
+                  estaSeleccionado
+                    ? 'ring-4 ring-blue-500 shadow-md transform scale-[0.98]'
+                    : 'border border-gray-200 hover:border-blue-200'
+                }`}
+              >
+                {estaSeleccionado && (
+                  <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 z-10 shadow-md">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+                )}
+
+                <div className="h-28 bg-gray-100 relative overflow-hidden">
+                  {ejercicio.imagen_url ? (
+                    <img
+                      src={ejercicio.imagen_url}
+                      alt={ejercicio.nombre}
+                      className={`w-full h-full object-cover transition-opacity ${estaSeleccionado ? 'opacity-75' : ''}`}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-3xl">💪</div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-white">
+                  <h3 className="font-bold text-gray-800 text-xs leading-tight mb-1.5">{ejercicio.nombre}</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {ejercicio.grupo_muscular && (
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colorGrupo(ejercicio.grupo_muscular)}`}>
+                        {ejercicio.grupo_muscular}
+                      </span>
+                    )}
+                    {ejercicio.tipo_registro && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                        {etiquetaRegistro(ejercicio.tipo_registro)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {ejerciciosSeleccionados.length > 0 && (

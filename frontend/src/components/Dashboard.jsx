@@ -152,6 +152,7 @@ export default function Dashboard() {
   const [userName, setUserName] = useState('Atleta');
   const [vistaActiva, setVistaActiva] = useState('inicio');
   const [rutinaActivaId, setRutinaActivaId] = useState(null);
+  const [rutinaAEditar, setRutinaAEditar] = useState(null);
 
   const [metricas, setMetricas] = useState({ total_sesiones: 0, volumen_total_kg: 0 });
   const [actividadReciente, setActividadReciente] = useState([]);
@@ -233,14 +234,49 @@ export default function Dashboard() {
         </h2>
 
         <nav className="flex-1 space-y-2 font-medium">
-          <div onClick={() => setVistaActiva('inicio')} className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'inicio' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}>Inicio</div>
-          <div onClick={() => setVistaActiva('mis-rutinas')} className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'mis-rutinas' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}>Mis Rutinas</div>
-          <div onClick={() => setVistaActiva('crear')} className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'crear' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}>Crear Entrenamiento</div>
-          <div onClick={() => setVistaActiva('historial')} className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'historial' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}>Historial</div>
-          <div onClick={() => setVistaActiva('metricas')} className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'metricas' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}>Métricas</div>
+          <div
+            onClick={() => setVistaActiva('inicio')}
+            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'inicio' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
+          >
+            Inicio
+          </div>
+
+          <div
+            onClick={() => setVistaActiva('mis-rutinas')}
+            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'mis-rutinas' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
+          >
+            Mis Rutinas
+          </div>
+
+          <div
+            onClick={() => {
+              setRutinaAEditar(null);
+              setVistaActiva('crear');
+            }}
+            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'crear' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
+          >
+            Crear Entrenamiento
+          </div>
+
+          <div
+            onClick={() => setVistaActiva('historial')}
+            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'historial' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
+          >
+            Historial
+          </div>
+
+          <div
+            onClick={() => setVistaActiva('metricas')}
+            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'metricas' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
+          >
+            Métricas
+          </div>
         </nav>
 
-        <button onClick={handleLogout} className="mt-auto bg-blue-800 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-sm">
+        <button
+          onClick={handleLogout}
+          className="mt-auto bg-blue-800 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-sm"
+        >
           Cerrar Sesión
         </button>
       </div>
@@ -277,7 +313,10 @@ export default function Dashboard() {
                 <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2 relative z-10">Nivel de Atleta</h3>
                 <p className="text-2xl font-black relative z-10">{metricas.total_sesiones > 25 ? 'Avanzado' : 'Iniciado'}</p>
                 <div className="w-full bg-gray-700 h-2 rounded-full mt-4 relative z-10 overflow-hidden">
-                  <div className="bg-blue-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${(metricas.total_sesiones % 10) * 10}%` }}></div>
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
+                    style={{ width: `${(metricas.total_sesiones % 10) * 10}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -290,8 +329,12 @@ export default function Dashboard() {
 
                   {proximoReto ? (
                     <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-2xl">
-                      <p className="text-blue-800 font-bold mb-1 uppercase text-xs tracking-wider">Análisis para: {proximoReto.ejercicio}</p>
-                      <p className="text-blue-700 text-sm font-medium leading-relaxed">"{proximoReto.sugerencia}"</p>
+                      <p className="text-blue-800 font-bold mb-1 uppercase text-xs tracking-wider">
+                        Análisis para: {proximoReto.ejercicio}
+                      </p>
+                      <p className="text-blue-700 text-sm font-medium leading-relaxed">
+                        "{proximoReto.sugerencia}"
+                      </p>
                     </div>
                   ) : (
                     <div className="bg-gray-50 border border-gray-100 p-5 rounded-2xl">
@@ -301,7 +344,10 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  <button onClick={() => setVistaActiva('mis-rutinas')} className="mt-6 w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm">
+                  <button
+                    onClick={() => setVistaActiva('mis-rutinas')}
+                    className="mt-6 w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                  >
                     Ir a Entrenar Ahora
                   </button>
                 </div>
@@ -309,20 +355,31 @@ export default function Dashboard() {
                 <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                   <div className="flex justify-between items-end mb-6">
                     <h3 className="text-xl font-black text-gray-900">Actividad Reciente 📋</h3>
-                    <button onClick={() => setVistaActiva('historial')} className="text-sm font-bold text-blue-600 hover:underline">Ver todo</button>
+                    <button
+                      onClick={() => setVistaActiva('historial')}
+                      className="text-sm font-bold text-blue-600 hover:underline"
+                    >
+                      Ver todo
+                    </button>
                   </div>
 
                   {actividadReciente.length > 0 ? (
                     <div className="space-y-4">
                       {actividadReciente.map(sesion => (
-                        <div key={sesion.id_sesion} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div
+                          key={sesion.id_sesion}
+                          className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100"
+                        >
                           <div>
                             <h4 className="font-bold text-gray-800">{sesion.nombre_rutina || 'Entrenamiento'}</h4>
                             <p className="text-xs text-gray-500 font-medium mt-0.5">
                               {new Date(sesion.fecha_inicio).toLocaleDateString()} • {sesion.duracion_minutos || 0} min
                             </p>
                           </div>
-                          <div className="bg-white p-2 rounded-lg shadow-sm text-xs font-bold text-green-600 border border-gray-100">Completado ✔️</div>
+
+                          <div className="bg-white p-2 rounded-lg shadow-sm text-xs font-bold text-green-600 border border-gray-100">
+                            Completado ✔️
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -353,10 +410,49 @@ export default function Dashboard() {
           </div>
         )}
 
-        {vistaActiva === 'crear' && <CrearEntrenamiento volverAMisRutinas={() => setVistaActiva('mis-rutinas')} />}
-        {vistaActiva === 'mis-rutinas' && <MisRutinas irAEntrenar={(id) => { setRutinaActivaId(id); setVistaActiva('entrenar'); }} />}
-        {vistaActiva === 'entrenar' && <SesionActiva idEntrenamiento={rutinaActivaId} volverAMisRutinas={() => setVistaActiva('inicio')} />}
+        {vistaActiva === 'crear' && (
+          <CrearEntrenamiento
+            volverAMisRutinas={() => setVistaActiva('mis-rutinas')}
+            rutinaAEditar={null}
+          />
+        )}
+
+        {vistaActiva === 'editar' && (
+          <CrearEntrenamiento
+            volverAMisRutinas={() => {
+              setRutinaAEditar(null);
+              setVistaActiva('mis-rutinas');
+            }}
+            rutinaAEditar={rutinaAEditar}
+            onGuardado={() => {
+              setRutinaAEditar(null);
+              setVistaActiva('mis-rutinas');
+            }}
+          />
+        )}
+
+        {vistaActiva === 'mis-rutinas' && (
+          <MisRutinas
+            irAEntrenar={(id) => {
+              setRutinaActivaId(id);
+              setVistaActiva('entrenar');
+            }}
+            onEditar={(rutina) => {
+              setRutinaAEditar(rutina);
+              setVistaActiva('editar');
+            }}
+          />
+        )}
+
+        {vistaActiva === 'entrenar' && (
+          <SesionActiva
+            idEntrenamiento={rutinaActivaId}
+            volverAMisRutinas={() => setVistaActiva('inicio')}
+          />
+        )}
+
         {vistaActiva === 'historial' && <Historial />}
+
         {vistaActiva === 'metricas' && <Metricas />}
       </main>
     </div>

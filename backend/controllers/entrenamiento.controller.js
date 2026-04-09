@@ -271,9 +271,113 @@ const eliminarEntrenamiento = async (req, res) => {
     }
 };
 
+const actualizarEntrenamiento = async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const { id } = req.params;
+        const { nombre, ejercicios } = req.body;
+
+        if (!nombre || nombre.trim() === '') {
+            return res.status(400).json({ error: 'El nombre de la rutina es obligatorio' });
+        }
+
+        if (!Array.isArray(ejercicios) || ejercicios.length === 0) {
+            return res.status(400).json({ error: 'Debes añadir al menos un ejercicio' });
+        }
+
+        await client.query('BEGIN');
+
+        const check = await client.query(
+            `SELECT id_entrenamiento
+             FROM entrenamiento
+             WHERE id_entrenamiento = $1
+               AND id_usuario = $2
+               AND es_predeterminado = false`,
+            [id, req.usuario]
+        );
+
+        if (check.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                error: 'Rutina no encontrada o no autorizada'
+            });
+        }
+
+        await client.query(
+            `UPDATE entrenamiento
+             SET nombre = $1
+             WHERE id_entrenamiento = $2
+               AND id_usuario = $3
+               AND es_predeterminado = false`,
+            [nombre.trim(), id, req.usuario]
+        );
+
+        await client.query(
+            `DELETE FROM ejercicio_entrenamiento
+             WHERE id_entrenamiento = $1`,
+            [id]
+        );
+
+        let orden = 1;
+
+        for (const ej of ejercicios) {
+            if (!ej.id_ejercicio) {
+                throw new Error(`Ejercicio inválido en la posición ${orden}`);
+            }
+
+            await client.query(
+                `INSERT INTO ejercicio_entrenamiento (
+                    id_entrenamiento,
+                    id_ejercicio,
+                    orden,
+                    series_objetivo,
+                    tiempo_descanso_segundos,
+                    reps_objetivo_min,
+                    reps_objetivo_max,
+                    duracion_objetivo_segundos,
+                    distancia_objetivo_metros
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                    id,
+                    ej.id_ejercicio,
+                    orden,
+                    toNullableNumber(ej.series) ?? 3,
+                    toNullableNumber(ej.descanso) ?? 90,
+                    toNullableNumber(ej.reps_objetivo_min),
+                    toNullableNumber(ej.reps_objetivo_max),
+                    toNullableNumber(ej.duracion_objetivo_segundos),
+                    toNullableNumber(ej.distancia_objetivo_metros)
+                ]
+            );
+
+            orden++;
+        }
+
+        await client.query('COMMIT');
+
+        res.json({
+            mensaje: 'Rutina actualizada correctamente',
+            id_entrenamiento: Number(id)
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error al actualizar la rutina:', error.message);
+        res.status(500).json({
+            error: 'Error en el servidor al actualizar la rutina',
+            detalle: error.message
+        });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     crearEntrenamiento,
     obtenerEntrenamientos,
     obtenerEntrenamientoPorId,
-    eliminarEntrenamiento
+    eliminarEntrenamiento,
+    actualizarEntrenamiento
 };
