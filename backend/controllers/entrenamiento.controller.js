@@ -96,7 +96,9 @@ const obtenerEntrenamientos = async (req, res) => {
         const entrenamientos = await pool.query(
             `SELECT * 
              FROM entrenamiento 
-             WHERE id_usuario = $1 OR es_predeterminado = true 
+             WHERE (id_usuario = $1 AND origen = 'manual')
+                OR origen = 'predeterminado'
+                OR es_predeterminado = true
              ORDER BY id_entrenamiento DESC`,
             [req.usuario]
         );

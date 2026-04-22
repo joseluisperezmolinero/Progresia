@@ -7,3 +7,4 @@ const { obtenerEjercicios } = require('../controllers/ejercicio.controller');
 router.get('/', auth, obtenerEjercicios);
 
 module.exports = router;
+

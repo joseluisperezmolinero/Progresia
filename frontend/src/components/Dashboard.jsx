@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
+import {
+  Home, Dumbbell, Sparkles, PlusCircle, History, BarChart3, LogOut,
+  Flame, TrendingUp, Trophy, Target, CheckCircle2, Lightbulb, ArrowRight
+} from 'lucide-react';
+import DashboardAdmin from './DashboardAdmin';
 import CrearEntrenamiento from './CrearEntrenamiento';
 import MisRutinas from './MisRutinas';
 import SesionActiva from './SesionActiva';
 import Historial from './Historial';
 import Metricas from './Metricas';
+import PlanInteligente from './PlanInteligente';
 import { CONSEJOS_FITNESS } from '../utils/tipsFitness';
 
 const formatearDuracion = (segundos) => {
@@ -21,31 +27,58 @@ const formatearDistancia = (metros) => {
   return `${Math.round(total)} m`;
 };
 
+const NIVELES_ATLETA = [
+  { nombre: 'Iniciado',   min: 0,   max: 29  },
+  { nombre: 'Constante',  min: 30,  max: 69  },
+  { nombre: 'Intermedio', min: 70,  max: 129 },
+  { nombre: 'Avanzado',   min: 130, max: 219 },
+  { nombre: 'Élite',      min: 220, max: null }
+];
+
+const obtenerProgresoAtleta = (totalSesiones) => {
+  const sesiones = Math.max(0, Number(totalSesiones || 0));
+  const indiceNivel = NIVELES_ATLETA.findIndex(
+    (nivel) => sesiones >= nivel.min && (nivel.max === null || sesiones <= nivel.max)
+  );
+  const nivelActual = NIVELES_ATLETA[indiceNivel >= 0 ? indiceNivel : 0];
+  const siguienteNivel = NIVELES_ATLETA[indiceNivel + 1] || null;
+
+  if (!siguienteNivel || nivelActual.max === null) {
+    return {
+      nivelActual, siguienteNivel: null, porcentaje: 100,
+      sesionesActuales: sesiones, sesionesParaSiguiente: 0,
+      textoProgreso: `${sesiones} sesiones · nivel máximo`,
+    };
+  }
+
+  const sesionesEnNivel = sesiones - nivelActual.min;
+  const totalSesionesNivel = (nivelActual.max - nivelActual.min) + 1;
+  const porcentaje = Math.max(6, Math.min(100, Math.round((sesionesEnNivel / totalSesionesNivel) * 100)));
+  const sesionesRestantes = Math.max(0, siguienteNivel.min - sesiones);
+
+  return {
+    nivelActual, siguienteNivel, porcentaje,
+    sesionesActuales: sesiones, sesionesParaSiguiente: sesionesRestantes,
+    textoProgreso: `${sesionesRestantes} sesiones para ${siguienteNivel.nombre}`,
+  };
+};
+
 const elegirSerieParaReto = (detalle) => {
   if (!Array.isArray(detalle) || detalle.length === 0) return null;
-
   const puntuacion = (serie) => {
     const rpe = Number(serie.rpe_fatiga || 0);
-
     switch (serie.tipo_registro) {
-      case 'peso_reps':
-        return rpe * 100000 + Number(serie.peso_kg || 0) * 100 + Number(serie.repeticiones || 0);
-      case 'distancia_duracion':
-        return rpe * 100000 + Number(serie.distancia_metros || 0) * 10 + Number(serie.duracion_segundos || 0);
-      case 'duracion':
-        return rpe * 100000 + Number(serie.duracion_segundos || 0);
-      case 'reps':
-      default:
-        return rpe * 100000 + Number(serie.repeticiones || 0);
+      case 'peso_reps':          return rpe * 100000 + Number(serie.peso_kg || 0) * 100 + Number(serie.repeticiones || 0);
+      case 'distancia_duracion': return rpe * 100000 + Number(serie.distancia_metros || 0) * 10 + Number(serie.duracion_segundos || 0);
+      case 'duracion':           return rpe * 100000 + Number(serie.duracion_segundos || 0);
+      default:                   return rpe * 100000 + Number(serie.repeticiones || 0);
     }
   };
-
   return [...detalle].sort((a, b) => puntuacion(b) - puntuacion(a))[0];
 };
 
 const generarSugerenciaReto = (serie) => {
   if (!serie) return null;
-
   const tipo = serie.tipo_registro;
   const grupo = serie.grupo_muscular;
   const nombreEj = serie.nombre_ejercicio;
@@ -59,7 +92,7 @@ const generarSugerenciaReto = (serie) => {
 
   if (tipo === 'peso_reps') {
     if (rpe <= 8 && reps >= 8) {
-      sugerencia = `¡Fuiste sobrado la última vez! Sube el peso a ${(peso + 2.5).toFixed(1)} kg para seguir progresando.`;
+      sugerencia = `Fuiste sobrado la última vez. Sube el peso a ${(peso + 2.5).toFixed(1)} kg para seguir progresando.`;
     } else if (rpe >= 9 && reps < 8) {
       sugerencia = `Te costó bastante mover ${peso.toFixed(1)} kg. Mantén el peso o bájalo un poco para asegurar técnica y rango completo.`;
     } else {
@@ -70,86 +103,77 @@ const generarSugerenciaReto = (serie) => {
 
   if (tipo === 'reps') {
     if (grupo === 'Core') {
-      if (rpe <= 7 && reps >= 15) {
-        sugerencia = `Vas muy sólido en ${nombreEj}. La próxima vez intenta sacar 2-4 repeticiones más o hacerlas con más control y una pequeña pausa al final de cada repetición.`;
-      } else if (rpe >= 9) {
-        sugerencia = `En ${nombreEj} fuiste muy al límite. Mantén el mismo objetivo de repeticiones y céntrate en la técnica y el control del movimiento.`;
-      } else {
-        sugerencia = `Buen trabajo en ${nombreEj}. Intenta añadir 1-2 repeticiones más manteniendo buena técnica.`;
-      }
+      if (rpe <= 7 && reps >= 15)      sugerencia = `Vas muy sólido en ${nombreEj}. Intenta sacar 2-4 repeticiones más o hacerlas con más control.`;
+      else if (rpe >= 9)               sugerencia = `En ${nombreEj} fuiste al límite. Mantén el mismo objetivo y céntrate en la técnica.`;
+      else                             sugerencia = `Buen trabajo en ${nombreEj}. Intenta añadir 1-2 repeticiones más manteniendo buena técnica.`;
       return { ejercicio: nombreEj, sugerencia };
     }
-
     if (grupo === 'Cardio') {
-      if (rpe <= 7 && reps >= 20) {
-        sugerencia = `Te vi con margen en ${nombreEj}. La próxima vez intenta aumentar un poco el volumen: 3-5 repeticiones más o el mismo trabajo con menos descanso.`;
-      } else if (rpe >= 9) {
-        sugerencia = `En ${nombreEj} el esfuerzo fue alto. Repite una marca parecida antes de subir más, buscando mejor ritmo y recuperación.`;
-      } else {
-        sugerencia = `Buen trabajo en ${nombreEj}. La siguiente sesión intenta mejorar un poco el rendimiento: 2-3 repeticiones más o un ritmo algo más constante.`;
-      }
+      if (rpe <= 7 && reps >= 20)      sugerencia = `Te vi con margen en ${nombreEj}. Aumenta volumen: 3-5 repeticiones más o menos descanso.`;
+      else if (rpe >= 9)               sugerencia = `En ${nombreEj} el esfuerzo fue alto. Repite una marca parecida antes de subir.`;
+      else                             sugerencia = `Buen trabajo en ${nombreEj}. Intenta 2-3 repeticiones más o un ritmo más constante.`;
       return { ejercicio: nombreEj, sugerencia };
     }
-
-    if (rpe <= 7 && reps >= 12) {
-      sugerencia = `Tienes margen en ${nombreEj}. La próxima vez intenta añadir 1-3 repeticiones manteniendo una técnica limpia.`;
-    } else if (rpe >= 9) {
-      sugerencia = `En ${nombreEj} fuiste bastante al límite. Repite una marca parecida antes de progresar más.`;
-    } else {
-      sugerencia = `Buen trabajo en ${nombreEj}. Intenta mejorar ligeramente tu marca la próxima vez con 1-2 repeticiones extra.`;
-    }
-
+    if (rpe <= 7 && reps >= 12)        sugerencia = `Tienes margen en ${nombreEj}. Añade 1-3 repeticiones manteniendo técnica limpia.`;
+    else if (rpe >= 9)                 sugerencia = `En ${nombreEj} fuiste al límite. Repite la marca antes de progresar más.`;
+    else                               sugerencia = `Buen trabajo en ${nombreEj}. Mejora ligeramente con 1-2 repeticiones extra.`;
     return { ejercicio: nombreEj, sugerencia };
   }
 
   if (tipo === 'duracion') {
     const aumento = duracion < 60 ? 10 : duracion < 180 ? 15 : 30;
-
     if (grupo === 'Core') {
-      if (rpe <= 7) {
-        sugerencia = `Buen control en ${nombreEj}. La próxima vez intenta aguantar ${formatearDuracion(duracion + aumento)} manteniendo la postura firme.`;
-      } else if (rpe >= 9) {
-        sugerencia = `En ${nombreEj} fuiste al límite. Repite unos ${formatearDuracion(duracion)} y céntrate en braceo, respiración y técnica.`;
-      } else {
-        sugerencia = `Buen trabajo en ${nombreEj}. Intenta sumar ${aumento} segundos más en la próxima sesión.`;
-      }
+      if (rpe <= 7)      sugerencia = `Buen control en ${nombreEj}. Intenta aguantar ${formatearDuracion(duracion + aumento)} con postura firme.`;
+      else if (rpe >= 9) sugerencia = `En ${nombreEj} fuiste al límite. Repite ${formatearDuracion(duracion)} y céntrate en la técnica.`;
+      else               sugerencia = `Buen trabajo en ${nombreEj}. Suma ${aumento} segundos más en la próxima sesión.`;
       return { ejercicio: nombreEj, sugerencia };
     }
-
     if (grupo === 'Cardio') {
-      if (rpe <= 7) {
-        sugerencia = `Tienes margen en ${nombreEj}. La próxima vez aumenta hasta ${formatearDuracion(duracion + aumento)} o mantén el tiempo con algo más de intensidad.`;
-      } else if (rpe >= 9) {
-        sugerencia = `El esfuerzo fue alto en ${nombreEj}. Repite unos ${formatearDuracion(duracion)} antes de subir el tiempo.`;
-      } else {
-        sugerencia = `Buen trabajo en ${nombreEj}. La siguiente sesión intenta añadir ${aumento} segundos o mantener el tiempo con mejor ritmo.`;
-      }
+      if (rpe <= 7)      sugerencia = `Tienes margen en ${nombreEj}. Aumenta hasta ${formatearDuracion(duracion + aumento)} o sube intensidad.`;
+      else if (rpe >= 9) sugerencia = `El esfuerzo fue alto en ${nombreEj}. Repite ${formatearDuracion(duracion)} antes de subir.`;
+      else               sugerencia = `Buen trabajo. Añade ${aumento} segundos o mantén el tiempo con mejor ritmo.`;
       return { ejercicio: nombreEj, sugerencia };
     }
-
-    sugerencia = `Intenta mantener ${formatearDuracion(duracion)} o subir hasta ${formatearDuracion(duracion + aumento)} en la próxima sesión.`;
+    sugerencia = `Mantén ${formatearDuracion(duracion)} o sube hasta ${formatearDuracion(duracion + aumento)} en la próxima sesión.`;
     return { ejercicio: nombreEj, sugerencia };
   }
 
   if (tipo === 'distancia_duracion') {
     const extraDistancia = distancia < 1000 ? 100 : distancia < 3000 ? 200 : 300;
-
-    if (rpe <= 7) {
-      sugerencia = `Buen margen en ${nombreEj}. La próxima vez intenta llegar a ${formatearDistancia(distancia + extraDistancia)} en un tiempo parecido a ${formatearDuracion(duracion)}.`;
-    } else if (rpe >= 9) {
-      sugerencia = `En ${nombreEj} fuiste bastante exigido. Repite ${formatearDistancia(distancia)} en torno a ${formatearDuracion(duracion)} antes de subir carga cardiovascular.`;
-    } else {
-      sugerencia = `Buen trabajo en ${nombreEj}. Intenta mantener ${formatearDistancia(distancia)} y recortar un poco el tiempo, o subir unos ${extraDistancia} m la próxima vez.`;
-    }
-
+    if (rpe <= 7)      sugerencia = `Buen margen en ${nombreEj}. Intenta llegar a ${formatearDistancia(distancia + extraDistancia)} en un tiempo parecido a ${formatearDuracion(duracion)}.`;
+    else if (rpe >= 9) sugerencia = `En ${nombreEj} fuiste exigido. Repite ${formatearDistancia(distancia)} en torno a ${formatearDuracion(duracion)} antes de subir.`;
+    else               sugerencia = `Buen trabajo. Mantén ${formatearDistancia(distancia)} y recorta tiempo, o sube ${extraDistancia} m.`;
     return { ejercicio: nombreEj, sugerencia };
   }
 
   return null;
 };
 
+// ── Item de navegación lateral ──────────────────────────────────────
+const NavItem = ({ icon: Icon, label, active, onClick, highlight }) => (
+  <button
+    onClick={onClick}
+    className={`
+      w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium
+      transition-all group
+      ${active
+        ? 'bg-white text-neutral-900'
+        : highlight
+          ? 'bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 border border-sky-500/20'
+          : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+      }
+    `}
+  >
+    <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
+    <span>{label}</span>
+  </button>
+);
+
 export default function Dashboard() {
   const [userName, setUserName] = useState('Atleta');
+  const [esAdmin, setEsAdmin] = useState(false);
+  const [perfilCargado, setPerfilCargado] = useState(false);
+
   const [vistaActiva, setVistaActiva] = useState('inicio');
   const [rutinaActivaId, setRutinaActivaId] = useState(null);
   const [rutinaAEditar, setRutinaAEditar] = useState(null);
@@ -158,17 +182,15 @@ export default function Dashboard() {
   const [actividadReciente, setActividadReciente] = useState([]);
   const [proximoReto, setProximoReto] = useState(null);
 
+  const progresoAtleta = obtenerProgresoAtleta(metricas.total_sesiones);
+
   const diaDelAnio = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
   const consejoDelDia = CONSEJOS_FITNESS[diaDelAnio % CONSEJOS_FITNESS.length];
 
   useEffect(() => {
     const obtenerDatosInicio = async () => {
       const token = localStorage.getItem('token');
-      if (!token) {
-        window.location.reload();
-        return;
-      }
-
+      if (!token) { window.location.reload(); return; }
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
@@ -176,6 +198,9 @@ export default function Dashboard() {
         if (resPerfil.ok) {
           const datos = await resPerfil.json();
           setUserName(datos.nombre.trim());
+          setEsAdmin(Boolean(datos.es_admin));
+          setPerfilCargado(true);
+          if (datos.es_admin) return;
         } else {
           localStorage.removeItem('token');
           window.location.reload();
@@ -183,34 +208,24 @@ export default function Dashboard() {
         }
 
         const resMetricas = await fetch('http://127.0.0.1:5000/api/metricas/resumen', { headers });
-        if (resMetricas.ok) {
-          setMetricas(await resMetricas.json());
-        }
+        if (resMetricas.ok) setMetricas(await resMetricas.json());
 
         const resHistorial = await fetch('http://127.0.0.1:5000/api/sesiones/historial', { headers });
         if (resHistorial.ok) {
           const historial = await resHistorial.json();
-          const completadas = historial.filter(s => s.fecha_fin);
+          const completadas = historial.filter((s) => s.fecha_fin);
           setActividadReciente(completadas.slice(0, 3));
 
           if (completadas.length > 0) {
             const ultimaSesionId = completadas[0].id_sesion;
             const resDetalle = await fetch(`http://127.0.0.1:5000/api/sesiones/${ultimaSesionId}/detalle`, { headers });
-
             if (resDetalle.ok) {
               const detalle = await resDetalle.json();
               if (detalle.length > 0) {
                 const serieReto = elegirSerieParaReto(detalle);
-                const reto = generarSugerenciaReto(serieReto);
-                setProximoReto(reto);
-              } else {
-                setProximoReto(null);
+                setProximoReto(generarSugerenciaReto(serieReto));
               }
-            } else {
-              setProximoReto(null);
             }
-          } else {
-            setProximoReto(null);
           }
         }
       } catch (error) {
@@ -226,188 +241,253 @@ export default function Dashboard() {
     window.location.reload();
   };
 
+  const irAPlanInteligente = () => setVistaActiva('plan-inteligente');
+
+  if (!perfilCargado) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-neutral-400 font-medium">
+        Cargando panel...
+      </div>
+    );
+  }
+
+  if (esAdmin) return <DashboardAdmin />;
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <div className="w-64 bg-blue-700 text-white flex flex-col p-6 shadow-xl z-10">
-        <h2 className="text-2xl font-bold mb-10 text-center flex items-center justify-center gap-2">
-          <span>Progresia</span> <span className="text-xl">🏋️‍♂️</span>
-        </h2>
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex">
+      {/* ── SIDEBAR ─────────────────────────────────────────── */}
+      <aside className="w-64 bg-neutral-900 border-r border-neutral-800 flex flex-col p-5 z-10">
+        <div className="flex items-center gap-3 mb-10 px-2">
+  <div className="w-11 h-11 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-sm">
+    <img
+      src="/logo_sin_nombre.png"
+      alt="Progresia"
+      className="block w-full h-full object-contain scale-[1.22]"
+      draggable={false}
+    />
+  </div>
+  <span className="text-lg font-semibold tracking-tight">Progresia</span>
+</div>
 
-        <nav className="flex-1 space-y-2 font-medium">
-          <div
-            onClick={() => setVistaActiva('inicio')}
-            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'inicio' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
-          >
-            Inicio
-          </div>
-
-          <div
-            onClick={() => setVistaActiva('mis-rutinas')}
-            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'mis-rutinas' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
-          >
-            Mis Rutinas
-          </div>
-
-          <div
-            onClick={() => {
-              setRutinaAEditar(null);
-              setVistaActiva('crear');
-            }}
-            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'crear' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
-          >
-            Crear Entrenamiento
-          </div>
-
-          <div
-            onClick={() => setVistaActiva('historial')}
-            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'historial' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
-          >
-            Historial
-          </div>
-
-          <div
-            onClick={() => setVistaActiva('metricas')}
-            className={`p-3 rounded-xl cursor-pointer transition-all ${vistaActiva === 'metricas' ? 'bg-white text-blue-700 font-bold shadow-sm' : 'hover:bg-blue-600'}`}
-          >
-            Métricas
-          </div>
+        <nav className="flex-1 space-y-1">
+          <NavItem icon={Home}        label="Inicio"              active={vistaActiva === 'inicio'}       onClick={() => setVistaActiva('inicio')} />
+          <NavItem icon={Dumbbell}    label="Mis Rutinas"         active={vistaActiva === 'mis-rutinas'}  onClick={() => setVistaActiva('mis-rutinas')} />
+          <NavItem icon={Sparkles}    label="Plan Inteligente"    active={vistaActiva === 'plan-inteligente'} highlight onClick={irAPlanInteligente} />
+          <NavItem icon={PlusCircle}  label="Crear Entrenamiento" active={vistaActiva === 'crear'}        onClick={() => { setRutinaAEditar(null); setVistaActiva('crear'); }} />
+          <NavItem icon={History}     label="Historial"           active={vistaActiva === 'historial'}    onClick={() => setVistaActiva('historial')} />
+          <NavItem icon={BarChart3}   label="Métricas"            active={vistaActiva === 'metricas'}     onClick={() => setVistaActiva('metricas')} />
         </nav>
 
         <button
           onClick={handleLogout}
-          className="mt-auto bg-blue-800 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-sm"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-neutral-400 hover:bg-red-500/10 hover:text-red-400 transition-colors"
         >
-          Cerrar Sesión
+          <LogOut className="w-[18px] h-[18px]" strokeWidth={2} />
+          <span>Cerrar sesión</span>
         </button>
-      </div>
+      </aside>
 
-      <main className="flex-1 p-10 overflow-y-auto h-screen bg-[#F8FAFC]">
+      {/* ── MAIN ────────────────────────────────────────────── */}
+      <main className="flex-1 overflow-y-auto h-screen">
         {vistaActiva === 'inicio' && (
-          <div className="animate-fadeIn max-w-6xl mx-auto">
-            <header className="flex justify-between items-center mb-10">
+          <div className="p-10 max-w-7xl mx-auto">
+            {/* Header */}
+            <header className="flex justify-between items-start mb-10">
               <div>
-                <h1 className="text-4xl font-black text-gray-900 tracking-tight">¡A por ello, {userName}! 💪</h1>
-                <p className="text-gray-500 mt-2 font-medium text-lg">Hoy es un buen día para superar tus marcas.</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-white">
+                  Hola, {userName}
+                </h1>
+                <p className="text-neutral-400 mt-1 text-sm">
+                  Hoy es un buen día para superar tus marcas.
+                </p>
               </div>
-
-              <div className="text-sm font-bold text-blue-700 bg-blue-50 px-5 py-2.5 rounded-xl border border-blue-100 shadow-sm capitalize">
+              <div className="text-xs font-medium text-neutral-400 bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-lg capitalize">
                 {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
               </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Sesiones Totales</h3>
-                <p className="text-4xl font-black text-blue-600">{metricas.total_sesiones}</p>
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Sesiones totales */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Flame className="w-4 h-4 text-sky-400" strokeWidth={2} />
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-neutral-500">Sesiones totales</h3>
+                </div>
+                <p className="text-3xl font-semibold text-white">{metricas.total_sesiones}</p>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Volumen de Fuerza</h3>
-                <p className="text-4xl font-black text-green-500">
-                  {Number(metricas.volumen_total_kg || 0).toLocaleString()} <span className="text-base text-gray-400">kg</span>
+              {/* Volumen */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <TrendingUp className="w-4 h-4 text-emerald-400" strokeWidth={2} />
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-neutral-500">Volumen total</h3>
+                </div>
+                <p className="text-3xl font-semibold text-white">
+                  {Number(metricas.volumen_total_kg || 0).toLocaleString()}
+                  <span className="text-base text-neutral-500 ml-1.5 font-normal">kg</span>
                 </p>
               </div>
 
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 p-6 rounded-3xl shadow-md text-white relative overflow-hidden">
-                <div className="absolute -right-4 -top-4 opacity-10 text-8xl">🏅</div>
-                <h3 className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-2 relative z-10">Nivel de Atleta</h3>
-                <p className="text-2xl font-black relative z-10">{metricas.total_sesiones > 25 ? 'Avanzado' : 'Iniciado'}</p>
-                <div className="w-full bg-gray-700 h-2 rounded-full mt-4 relative z-10 overflow-hidden">
+              {/* Nivel de atleta */}
+              <div className="bg-gradient-to-br from-neutral-900 to-neutral-800 border border-neutral-700 rounded-xl p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Trophy className="w-4 h-4 text-amber-400" strokeWidth={2} />
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-neutral-400">Nivel de atleta</h3>
+                </div>
+
+                <div className="flex items-end justify-between gap-4 mb-3">
+                  <div>
+                    <p className="text-2xl font-semibold text-white">{progresoAtleta.nivelActual.nombre}</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      {progresoAtleta.sesionesActuales} sesiones completadas
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium text-sky-400">{progresoAtleta.porcentaje}%</span>
+                </div>
+
+                <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                    style={{ width: `${(metricas.total_sesiones % 10) * 10}%` }}
+                    className="bg-gradient-to-r from-sky-500 to-indigo-500 h-full rounded-full transition-all duration-1000"
+                    style={{ width: `${progresoAtleta.porcentaje}%` }}
                   />
+                </div>
+
+                <div className="flex items-center justify-between mt-3 text-[11px] text-neutral-500">
+                  <span>{progresoAtleta.nivelActual.nombre}</span>
+                  <span className="text-sky-400">{progresoAtleta.textoProgreso}</span>
+                  <span>{progresoAtleta.siguienteNivel ? progresoAtleta.siguienteNivel.nombre : 'Máximo'}</span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 flex flex-col gap-8">
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-5 text-7xl">🎯</div>
-                  <h3 className="text-xl font-black text-gray-900 mb-5 flex items-center gap-2">Tu Próximo Reto 🚀</h3>
+            {/* CTA Plan Inteligente */}
+            <button
+              onClick={irAPlanInteligente}
+              className="w-full mb-6 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 rounded-xl p-6 text-white transition-all group text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center flex-shrink-0 backdrop-blur-sm">
+                  <Sparkles className="w-6 h-6" strokeWidth={2} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-sky-200 mb-0.5">Recomendado</p>
+                  <h3 className="text-lg font-semibold">Genera tu Plan Inteligente</h3>
+                  <p className="text-sky-100/80 text-sm mt-0.5">
+                    Responde unas preguntas y recibirás una rutina personalizada según tu objetivo y equipamiento.
+                  </p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </button>
+
+            {/* Main grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Columna izquierda */}
+              <div className="lg:col-span-2 flex flex-col gap-6">
+                {/* Próximo reto */}
+                <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Target className="w-4 h-4 text-sky-400" strokeWidth={2} />
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-300">Tu próximo reto</h3>
+                  </div>
 
                   {proximoReto ? (
-                    <div className="bg-blue-50/50 border border-blue-100 p-5 rounded-2xl">
-                      <p className="text-blue-800 font-bold mb-1 uppercase text-xs tracking-wider">
-                        Análisis para: {proximoReto.ejercicio}
+                    <div className="bg-sky-500/5 border border-sky-500/20 rounded-lg p-5">
+                      <p className="text-sky-300 font-medium text-xs uppercase tracking-wider mb-2">
+                        Análisis: {proximoReto.ejercicio}
                       </p>
-                      <p className="text-blue-700 text-sm font-medium leading-relaxed">
-                        "{proximoReto.sugerencia}"
+                      <p className="text-neutral-200 text-sm leading-relaxed">
+                        {proximoReto.sugerencia}
                       </p>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 border border-gray-100 p-5 rounded-2xl">
-                      <p className="text-gray-500 text-sm font-medium">
-                        Registra tu primera sesión completada para que la app analice tus marcas y te proponga retos personalizados.
+                    <div className="bg-neutral-950 border border-neutral-800 rounded-lg p-5">
+                      <p className="text-neutral-500 text-sm leading-relaxed">
+                        Registra tu primera sesión completada para que el sistema analice tus marcas y te proponga retos personalizados.
                       </p>
                     </div>
                   )}
 
                   <button
                     onClick={() => setVistaActiva('mis-rutinas')}
-                    className="mt-6 w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                    className="mt-5 w-full py-3 bg-white text-neutral-900 rounded-lg font-medium hover:bg-neutral-200 transition-colors"
                   >
-                    Ir a Entrenar Ahora
+                    Entrenar ahora
                   </button>
                 </div>
 
-                <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                  <div className="flex justify-between items-end mb-6">
-                    <h3 className="text-xl font-black text-gray-900">Actividad Reciente 📋</h3>
+                {/* Actividad reciente */}
+                <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+                  <div className="flex justify-between items-center mb-5">
+                    <div className="flex items-center gap-2">
+                      <History className="w-4 h-4 text-neutral-400" strokeWidth={2} />
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-300">Actividad reciente</h3>
+                    </div>
                     <button
                       onClick={() => setVistaActiva('historial')}
-                      className="text-sm font-bold text-blue-600 hover:underline"
+                      className="text-xs font-medium text-sky-400 hover:text-sky-300 transition-colors"
                     >
                       Ver todo
                     </button>
                   </div>
 
                   {actividadReciente.length > 0 ? (
-                    <div className="space-y-4">
-                      {actividadReciente.map(sesion => (
+                    <div className="space-y-2">
+                      {actividadReciente.map((sesion) => (
                         <div
                           key={sesion.id_sesion}
-                          className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl border border-gray-100"
+                          className="flex justify-between items-center p-4 bg-neutral-950 rounded-lg border border-neutral-800"
                         >
                           <div>
-                            <h4 className="font-bold text-gray-800">{sesion.nombre_rutina || 'Entrenamiento'}</h4>
-                            <p className="text-xs text-gray-500 font-medium mt-0.5">
-                              {new Date(sesion.fecha_inicio).toLocaleDateString()} • {sesion.duracion_minutos || 0} min
+                            <h4 className="font-medium text-white text-sm">{sesion.nombre_rutina || 'Entrenamiento'}</h4>
+                            <p className="text-xs text-neutral-500 mt-0.5">
+                              {new Date(sesion.fecha_inicio).toLocaleDateString()} · {sesion.duracion_minutos || 0} min
                             </p>
                           </div>
-
-                          <div className="bg-white p-2 rounded-lg shadow-sm text-xs font-bold text-green-600 border border-gray-100">
-                            Completado ✔️
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-md">
+                            <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            Completado
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-400 text-sm italic text-center py-6">Aún no hay actividad reciente.</p>
+                    <p className="text-neutral-500 text-sm text-center py-8">No hay actividad reciente.</p>
                   )}
                 </div>
               </div>
 
+              {/* Columna derecha - Tip */}
               <div className="lg:col-span-1">
-                <div className="bg-gradient-to-b from-blue-600 to-blue-800 p-8 rounded-3xl text-white shadow-lg h-full flex flex-col relative overflow-hidden">
-                  <div className="absolute -right-6 -bottom-6 opacity-10 text-9xl">💡</div>
-                  <div className="relative z-10 flex-1 flex flex-col">
-                    <div className="inline-flex items-center gap-2 mb-6 bg-white/20 w-fit px-4 py-2 rounded-xl border border-white/30 backdrop-blur-sm">
-                      <span className="text-xs font-black uppercase tracking-widest text-white">Fitness Tip Diario</span>
-                    </div>
+                <div className="bg-gradient-to-b from-neutral-900 to-neutral-950 border border-neutral-800 rounded-xl p-6 h-full flex flex-col">
+                  <div className="flex items-center gap-2 mb-5">
+                    <Lightbulb className="w-4 h-4 text-amber-400" strokeWidth={2} />
+                    <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">Tip del día</span>
+                  </div>
 
-                    <h3 className="text-2xl font-black text-white mb-4 leading-tight">{consejoDelDia.titulo}</h3>
-                    <p className="text-blue-100 text-sm leading-relaxed font-medium mb-8">{consejoDelDia.texto}</p>
+                  <h3 className="text-xl font-semibold text-white mb-3 leading-tight">
+                    {consejoDelDia.titulo}
+                  </h3>
+                  <p className="text-neutral-400 text-sm leading-relaxed flex-1">
+                    {consejoDelDia.texto}
+                  </p>
 
-                    <div className="mt-auto pt-6 border-t border-blue-500/50">
-                      <p className="text-xs font-bold uppercase tracking-widest text-blue-300">Vuelve mañana para más</p>
-                    </div>
+                  <div className="mt-6 pt-6 border-t border-neutral-800">
+                    <p className="text-[11px] font-medium uppercase tracking-widest text-neutral-600">
+                      Vuelve mañana para más
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        )}
+
+        {vistaActiva === 'plan-inteligente' && (
+          <PlanInteligente
+            irAEntrenar={(id) => { setRutinaActivaId(id); setVistaActiva('entrenar'); }}
+          />
         )}
 
         {vistaActiva === 'crear' && (
@@ -419,28 +499,16 @@ export default function Dashboard() {
 
         {vistaActiva === 'editar' && (
           <CrearEntrenamiento
-            volverAMisRutinas={() => {
-              setRutinaAEditar(null);
-              setVistaActiva('mis-rutinas');
-            }}
+            volverAMisRutinas={() => { setRutinaAEditar(null); setVistaActiva('mis-rutinas'); }}
             rutinaAEditar={rutinaAEditar}
-            onGuardado={() => {
-              setRutinaAEditar(null);
-              setVistaActiva('mis-rutinas');
-            }}
+            onGuardado={() => { setRutinaAEditar(null); setVistaActiva('mis-rutinas'); }}
           />
         )}
 
         {vistaActiva === 'mis-rutinas' && (
           <MisRutinas
-            irAEntrenar={(id) => {
-              setRutinaActivaId(id);
-              setVistaActiva('entrenar');
-            }}
-            onEditar={(rutina) => {
-              setRutinaAEditar(rutina);
-              setVistaActiva('editar');
-            }}
+            irAEntrenar={(id) => { setRutinaActivaId(id); setVistaActiva('entrenar'); }}
+            onEditar={(rutina) => { setRutinaAEditar(rutina); setVistaActiva('editar'); }}
           />
         )}
 
@@ -452,7 +520,6 @@ export default function Dashboard() {
         )}
 
         {vistaActiva === 'historial' && <Historial />}
-
         {vistaActiva === 'metricas' && <Metricas />}
       </main>
     </div>

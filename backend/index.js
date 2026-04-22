@@ -18,6 +18,9 @@ app.use('/api/ejercicios', require('./routes/ejercicio.routes'));
 app.use('/api/entrenamientos', require('./routes/entrenamiento.routes')); 
 app.use('/api/sesiones', require('./routes/sesion.routes'));
 app.use('/api/metricas', require('./routes/metricas.routes'));
+app.use('/api/planes-inteligentes', require('./routes/planInteligente.routes'));
+const adminRoutes = require('./routes/admin.routes');
+app.use('/api/admin', adminRoutes);
 
 // Definimos el puerto
 const PORT = process.env.PORT || 5000;
