@@ -170,11 +170,11 @@ export default function CrearEntrenamiento({
   });
 
   return (
-    <div className="p-10 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-10 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-white">
             {esEdicion ? 'Editar rutina' : 'Crear nueva rutina'}
           </h1>
           <p className="text-neutral-400 mt-1 text-sm">

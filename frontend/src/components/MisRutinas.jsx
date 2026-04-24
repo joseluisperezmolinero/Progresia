@@ -164,9 +164,9 @@ export default function MisRutinas({ irAEntrenar, onEditar }) {
   }
 
   return (
-    <div className="p-10 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-10 max-w-7xl mx-auto">
       <header className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Mis Rutinas</h1>
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-white">Mis Rutinas</h1>
         <p className="text-neutral-400 mt-1 text-sm">
           Gestiona y entrena con tus rutinas guardadas.
         </p>

@@ -293,7 +293,7 @@ export default function SesionActiva({ idEntrenamiento, volverAMisRutinas }) {
 
   return (
     <>
-      <div className="p-10 max-w-3xl mx-auto">
+      <div className="p-4 lg:p-10 max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -322,7 +322,7 @@ export default function SesionActiva({ idEntrenamiento, volverAMisRutinas }) {
 
         {descansando ? (
           /* ── DESCANSO ─────────────────────────── */
-          <div className="bg-neutral-900 border border-sky-500/30 rounded-xl p-10 text-center">
+          <div className="bg-neutral-900 border border-sky-500/30 rounded-xl p-6 lg:p-10 text-center">
             <div className="flex items-center justify-center gap-2 text-sky-400 text-xs font-semibold uppercase tracking-widest mb-3">
               <TimerIcon className="w-4 h-4" strokeWidth={2} />
               Descanso

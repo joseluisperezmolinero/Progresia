@@ -3,10 +3,9 @@ import {
   LayoutDashboard, Users, Dumbbell, FileText, AlertTriangle, PlusCircle,
   LogOut, Shield, Search, RefreshCw, Pencil, Trash2, UserCog, UserMinus,
   Loader2, AlertCircle, CheckCircle2, Info, XCircle, Save, Clock, ChevronDown,
-  Activity, Database, TrendingUp, BarChart3,
+  Activity, Database, TrendingUp, BarChart3, Menu, X, ArrowLeft,
 } from 'lucide-react';
 import AdminEjerciciosPanel from './AdminEjerciciosPanel';
-
 
 const API_BASE = 'http://127.0.0.1:5000/api/admin';
 
@@ -87,6 +86,18 @@ export default function DashboardAdmin() {
   const [adminId, setAdminId] = useState(null);
   const [vistaActiva, setVistaActiva] = useState('resumen');
   const [cargando, setCargando] = useState(true);
+
+  /* ── Sidebar móvil ───────────────────────────────────────
+     Mismo patrón que el Dashboard normal: cerrado por defecto,
+     se abre con la hamburguesa, se cierra al cambiar de vista. */
+  const [sidebarAbierto, setSidebarAbierto] = useState(false);
+  useEffect(() => { setSidebarAbierto(false); }, [vistaActiva]);
+  useEffect(() => {
+    if (sidebarAbierto) {
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = ''; };
+    }
+  }, [sidebarAbierto]);
   const [errorGeneral, setErrorGeneral] = useState('');
 
   const [resumen, setResumen] = useState({
@@ -113,6 +124,18 @@ export default function DashboardAdmin() {
   });
   const [incidenciaSeleccionada, setIncidenciaSeleccionada] = useState(null);
   const [actualizandoIncidencia, setActualizandoIncidencia] = useState({ estado: '', notas_seguimiento: '' });
+
+  /* En móvil alternamos entre lista/detalle dentro de Usuarios e Incidencias.
+     En xl+ se ven ambos lado a lado. */
+  const [vistaMobileUsuarios, setVistaMobileUsuarios] = useState('lista');
+  const [vistaMobileIncidencias, setVistaMobileIncidencias] = useState('lista');
+
+  /* Reset al cambiar de pestaña */
+  useEffect(() => {
+    setVistaMobileUsuarios('lista');
+    setVistaMobileIncidencias('lista');
+  }, [vistaActiva]);
+
 
   const token = localStorage.getItem('token');
 
@@ -242,6 +265,7 @@ export default function DashboardAdmin() {
       estado: incidencia.estado || '',
       notas_seguimiento: incidencia.notas_seguimiento || '',
     });
+    setVistaMobileIncidencias('detalle');
   };
 
   const handleActualizarIncidencia = async (e) => {
@@ -283,11 +307,13 @@ export default function DashboardAdmin() {
       apellidos: usuario.apellidos || '',
       email: usuario.email || '',
     });
+    setVistaMobileUsuarios('detalle');
   };
 
   const cerrarEdicionUsuario = () => {
     setUsuarioEditando(null);
     setFormUsuario({ nombre: '', apellidos: '', email: '' });
+    setVistaMobileUsuarios('lista');
   };
 
   const guardarEdicionUsuario = async (e) => {
@@ -349,22 +375,81 @@ export default function DashboardAdmin() {
   }[vistaActiva];
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex">
-      {/* ── SIDEBAR ─────────────────────────────────────── */}
-      <aside className="w-64 bg-neutral-900 border-r border-neutral-800 flex flex-col p-5 z-10">
-        <div className="flex items-center gap-2 mb-3 px-2">
-          <div className="w-11 h-11 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-sm">
-  <img
-    src="/logo_sin_nombre.png"
-    alt="Logo"
-    className="block w-full h-full object-contain scale-[1.22]"
-    draggable={false}
-  />
-</div>
-          <div>
-            <span className="text-sm font-semibold tracking-tight block leading-tight">Progresia</span>
-            <span className="text-[10px] uppercase tracking-widest text-sky-400 font-medium">Admin</span>
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 lg:flex">
+      {/* ══════════════════════════════════════════════════════
+          TOPBAR MÓVIL — solo aparece en <lg
+          ══════════════════════════════════════════════════════ */}
+      <header className="lg:hidden sticky top-0 z-30 bg-neutral-900/95 backdrop-blur border-b border-neutral-800 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-lg overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-sm">
+            <img
+              src="/logo_sin_nombre.png"
+              alt="Progresia"
+              className="block w-full h-full object-contain scale-[1.22]"
+              draggable={false}
+            />
           </div>
+          <div className="leading-tight">
+            <span className="text-base font-semibold tracking-tight text-white block">Progresia</span>
+            <span className="text-[9px] uppercase tracking-widest text-sky-400 font-medium">Admin</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSidebarAbierto(true)}
+          aria-label="Abrir menú"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-neutral-300 hover:bg-neutral-800 active:bg-neutral-700 transition-colors"
+        >
+          <Menu className="w-5 h-5" strokeWidth={2} />
+        </button>
+      </header>
+
+      {/* Overlay móvil */}
+      {sidebarAbierto && (
+        <div
+          onClick={() => setSidebarAbierto(false)}
+          className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ── SIDEBAR ─────────────────────────────────────── */}
+      <aside
+        className={`
+          fixed lg:sticky top-0 left-0 z-50
+          w-72 lg:w-64 h-screen
+          bg-neutral-900 border-r border-neutral-800
+          flex flex-col p-5 self-start
+          transition-transform duration-300 ease-out
+          ${sidebarAbierto ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+        `}
+      >
+        <div className="flex items-center justify-between mb-3 px-2">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 shadow-sm">
+              <img
+                src="/logo_sin_nombre.png"
+                alt="Progresia"
+                className="block w-full h-full object-contain scale-[1.22]"
+                draggable={false}
+              />
+            </div>
+            <div>
+              <span className="text-base font-semibold tracking-tight block leading-tight text-white">Progresia</span>
+              <span className="text-[10px] uppercase tracking-widest text-sky-400 font-medium">Admin</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setSidebarAbierto(false)}
+            aria-label="Cerrar menú"
+            className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-800 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" strokeWidth={2} />
+          </button>
         </div>
         <p className="text-xs text-neutral-500 mb-8 px-2">Hola, {adminName}</p>
 
@@ -387,10 +472,10 @@ export default function DashboardAdmin() {
       </aside>
 
       {/* ── MAIN ────────────────────────────────────────── */}
-      <main className="flex-1 p-10 overflow-y-auto h-screen">
+      <main className="flex-1 p-4 lg:p-10 min-h-screen">
         <header className="flex justify-between items-start mb-8 flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-white">{tituloVista}</h1>
+            <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-white">{tituloVista}</h1>
             <p className="text-neutral-400 mt-1 text-sm">
               Supervisión técnica y mantenimiento de la plataforma.
             </p>
@@ -447,8 +532,11 @@ export default function DashboardAdmin() {
 
         {/* ── USUARIOS ──────────────────────────────────── */}
         {vistaActiva === 'usuarios' && (
-          <div className="grid xl:grid-cols-2 gap-6">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+          <div className="xl:grid xl:grid-cols-2 xl:gap-6">
+            <div className={`
+              ${vistaMobileUsuarios === 'detalle' ? 'hidden xl:block' : 'block'}
+              bg-neutral-900 border border-neutral-800 rounded-xl p-4 lg:p-6
+            `}>
               <div className="flex justify-between items-start mb-5">
                 <div>
                   <h3 className="text-lg font-semibold text-white">Usuarios del sistema</h3>
@@ -504,7 +592,7 @@ export default function DashboardAdmin() {
                   No hay usuarios que coincidan con los filtros.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
+                <div className="space-y-2">
                   {usuariosFiltrados.map((usuario) => (
                     <div
                       key={usuario.id_usuario}
@@ -577,7 +665,21 @@ export default function DashboardAdmin() {
               )}
             </div>
 
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+            <div className={`
+              ${vistaMobileUsuarios === 'lista' ? 'hidden xl:block' : 'block'}
+              bg-neutral-900 border border-neutral-800 rounded-xl p-4 lg:p-6
+              mt-6 xl:mt-0
+            `}>
+              {/* Botón volver — SOLO MÓVIL */}
+              <button
+                type="button"
+                onClick={cerrarEdicionUsuario}
+                className="xl:hidden flex items-center gap-2 text-sm text-sky-400 hover:text-sky-300 transition-colors mb-4 -ml-1"
+              >
+                <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+                Volver al listado
+              </button>
+
               {!usuarioEditando ? (
                 <div className="bg-neutral-950 border border-dashed border-neutral-800 rounded-lg p-8 text-center text-neutral-500 text-sm">
                   <Pencil className="w-5 h-5 mx-auto mb-2 opacity-60" strokeWidth={2} />
@@ -724,8 +826,11 @@ export default function DashboardAdmin() {
 
         {/* ── INCIDENCIAS ───────────────────────────────── */}
         {vistaActiva === 'incidencias' && (
-          <div className="grid xl:grid-cols-2 gap-6">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+          <div className="xl:grid xl:grid-cols-2 xl:gap-6">
+            <div className={`
+              ${vistaMobileIncidencias === 'detalle' ? 'hidden xl:block' : 'block'}
+              bg-neutral-900 border border-neutral-800 rounded-xl p-4 lg:p-6
+            `}>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-5">
                 <div>
                   <h3 className="text-lg font-semibold text-white">Listado de incidencias</h3>
@@ -759,7 +864,7 @@ export default function DashboardAdmin() {
                   No hay incidencias registradas.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
+                <div className="space-y-2">
                   {incidencias.map((incidencia) => {
                     const activa = incidenciaSeleccionada?.id_incidencia === incidencia.id_incidencia;
                     return (
@@ -801,7 +906,21 @@ export default function DashboardAdmin() {
               )}
             </div>
 
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+            <div className={`
+              ${vistaMobileIncidencias === 'lista' ? 'hidden xl:block' : 'block'}
+              bg-neutral-900 border border-neutral-800 rounded-xl p-4 lg:p-6
+              mt-6 xl:mt-0
+            `}>
+              {/* Botón volver — SOLO MÓVIL */}
+              <button
+                type="button"
+                onClick={() => setVistaMobileIncidencias('lista')}
+                className="xl:hidden flex items-center gap-2 text-sm text-sky-400 hover:text-sky-300 transition-colors mb-4 -ml-1"
+              >
+                <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+                Volver al listado
+              </button>
+
               {!incidenciaSeleccionada ? (
                 <div className="bg-neutral-950 border border-dashed border-neutral-800 rounded-lg p-8 text-center text-neutral-500 text-sm">
                   <AlertTriangle className="w-5 h-5 mx-auto mb-2 opacity-60" strokeWidth={2} />
@@ -888,7 +1007,7 @@ export default function DashboardAdmin() {
 
         {/* ── NUEVA INCIDENCIA ──────────────────────────── */}
         {vistaActiva === 'nueva-incidencia' && (
-          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 max-w-3xl">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 lg:p-6 max-w-3xl">
             <h3 className="text-lg font-semibold text-white mb-1">Registrar incidencia técnica</h3>
             <p className="text-sm text-neutral-400 mb-6">
               Documenta la anomalía para poder seguirla y resolverla.

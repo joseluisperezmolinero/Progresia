@@ -277,7 +277,7 @@ export default function PlanInteligente({ irAEntrenar }) {
     (modo === 'dia' ? enfoque : Number(diasSemana) >= 2);
 
   return (
-    <div className="p-10 max-w-6xl mx-auto">
+    <div className="p-4 lg:p-10 max-w-6xl mx-auto">
       <header className="mb-8 flex items-start justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -286,7 +286,7 @@ export default function PlanInteligente({ irAEntrenar }) {
               Plan Inteligente
             </span>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-white">
             Genera tu rutina personalizada
           </h1>
           <p className="text-neutral-400 mt-1 text-sm">

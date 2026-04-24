@@ -357,14 +357,14 @@ export default function Metricas() {
   };
 
   return (
-    <div className="p-10 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-10 max-w-7xl mx-auto">
       <header className="mb-8 flex items-start justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 className="w-5 h-5 text-sky-400" strokeWidth={2} />
             <span className="text-xs font-semibold uppercase tracking-widest text-sky-400">Análisis</span>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white">Centro de Métricas</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-white">Centro de Métricas</h1>
           <p className="text-neutral-400 mt-1 text-sm">Tus datos transformados en progreso real.</p>
         </div>
 

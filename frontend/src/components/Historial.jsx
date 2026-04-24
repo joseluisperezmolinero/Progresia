@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Calendar, Clock, Inbox, Loader2, FileText } from 'lucide-react';
+import { Calendar, Clock, Inbox, Loader2, FileText, ArrowLeft } from 'lucide-react';
 
 export default function Historial() {
   const [sesiones, setSesiones] = useState([]);
@@ -8,6 +8,10 @@ export default function Historial() {
 
   const [tipoFiltro, setTipoFiltro] = useState('mes');
   const [filtroValor, setFiltroValor] = useState('');
+
+  /* En móvil alternamos entre 'lista' y 'detalle'.
+     En escritorio (lg+) este estado se ignora — se muestran ambos. */
+  const [vistaMobile, setVistaMobile] = useState('lista');
 
   useEffect(() => {
     const cargarHistorial = async () => {
@@ -32,6 +36,12 @@ export default function Historial() {
       headers: { Authorization: `Bearer ${token}` },
     });
     setSesionDetalle(await res.json());
+    /* En móvil cambiamos a la vista de detalle */
+    setVistaMobile('detalle');
+  };
+
+  const volverALista = () => {
+    setVistaMobile('lista');
   };
 
   const sesionesFiltradas = sesiones.filter((s) => {
@@ -66,7 +76,7 @@ export default function Historial() {
 
   if (cargando) {
     return (
-      <div className="p-10 flex items-center justify-center text-neutral-400">
+      <div className="p-4 lg:p-10 flex items-center justify-center text-neutral-400">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         Cargando historial...
       </div>
@@ -88,17 +98,139 @@ export default function Historial() {
     </button>
   );
 
+  /* ── PANEL DE DETALLE (reutilizable) ─────────────── */
+  const renderDetalle = () => (
+    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 lg:p-6 lg:min-h-[400px] lg:sticky lg:top-0 lg:self-start">
+      {/* Botón volver — SOLO MÓVIL */}
+      <button
+        type="button"
+        onClick={volverALista}
+        className="lg:hidden flex items-center gap-2 text-sm text-sky-400 hover:text-sky-300 transition-colors mb-4 -ml-1"
+      >
+        <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+        Volver a la lista
+      </button>
+
+      {sesionDetalle ? (
+        <div>
+          <div className="flex items-center gap-2 mb-5">
+            <FileText className="w-4 h-4 text-sky-400" strokeWidth={2} />
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-300">
+              Resumen de la sesión
+            </h3>
+          </div>
+
+          <div className="space-y-5 lg:max-h-[60vh] lg:overflow-y-auto lg:pr-1">
+            {[...new Set(sesionDetalle.map((i) => i.nombre_ejercicio))].map((nombreEj) => (
+              <div key={nombreEj}>
+                <h4 className="font-medium text-sky-400 text-sm mb-2">{nombreEj}</h4>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {sesionDetalle.filter((d) => d.nombre_ejercicio === nombreEj).map((serie) => (
+                    <div
+                      key={serie.id_serie}
+                      className="flex justify-between items-center bg-neutral-950 p-3 rounded-lg border border-neutral-800"
+                    >
+                      <span className="text-xs font-medium text-neutral-500">Serie {serie.num_serie}</span>
+                      <div className="text-right">
+                        <span className="font-semibold text-white text-sm">
+                          {formatearSerie(serie)}
+                        </span>
+                        {serie.rpe_fatiga && (
+                          <span className="block text-[11px] font-medium text-neutral-500 mt-0.5">
+                            RPE {serie.rpe_fatiga}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500 py-10">
+          <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center mb-3">
+            <FileText className="w-4 h-4 text-neutral-600" strokeWidth={2} />
+          </div>
+          <p className="text-sm max-w-xs">Selecciona una sesión de la lista para ver su detalle.</p>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ── LISTA (reutilizable) ─────────────────────────── */
+  const renderLista = () => (
+    <div className="space-y-3 lg:max-h-[70vh] lg:overflow-y-auto lg:pr-1">
+      {sesionesFiltradas.length === 0 ? (
+        <div className="bg-neutral-900 border border-neutral-800 border-dashed rounded-xl p-12 text-center">
+          <div className="inline-flex w-10 h-10 items-center justify-center bg-neutral-800 rounded-lg mb-3">
+            <Inbox className="w-4 h-4 text-neutral-500" strokeWidth={2} />
+          </div>
+          <h3 className="text-sm font-medium text-white mb-1">Sin resultados</h3>
+          <p className="text-xs text-neutral-500">No hemos encontrado entrenamientos para esta fecha.</p>
+        </div>
+      ) : (
+        sesionesFiltradas.map((s) => {
+          const activa = sesionDetalle && sesionDetalle[0]?.id_sesion === s.id_sesion;
+          return (
+            <button
+              key={s.id_sesion}
+              onClick={() => verDetalle(s.id_sesion)}
+              className={`
+                w-full text-left bg-neutral-900 border rounded-xl p-5 transition-all
+                ${activa ? 'border-sky-500/40' : 'border-neutral-800 hover:border-neutral-700'}
+              `}
+            >
+              <div className="flex justify-between items-start mb-2 gap-2">
+                <span className="text-xs font-medium text-neutral-400 capitalize">
+                  {new Date(s.fecha_inicio).toLocaleDateString(undefined, {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                  })}
+                </span>
+                <span className="flex items-center gap-1 text-[11px] bg-sky-500/10 text-sky-300 px-2 py-1 rounded-md font-medium border border-sky-500/20 whitespace-nowrap shrink-0">
+                  <Clock className="w-3 h-3" strokeWidth={2.5} />
+                  {s.duracion_minutos ? `${s.duracion_minutos} min` : '0 min'}
+                </span>
+              </div>
+
+              <h3 className="text-base font-semibold text-white">
+                {s.nombre_rutina || 'Entrenamiento libre'}
+              </h3>
+
+              <p className="text-xs text-neutral-500 mt-1">
+                {new Date(s.fecha_inicio).toLocaleTimeString(undefined, {
+                  hour: '2-digit', minute: '2-digit',
+                })}
+              </p>
+
+              {s.notas && (
+                <p className="text-xs text-neutral-400 italic mt-3 border-l-2 border-sky-500/30 pl-3">
+                  {s.notas}
+                </p>
+              )}
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+
   return (
-    <div className="p-10 max-w-7xl mx-auto">
-      <header className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Historial</h1>
+    <div className="p-4 lg:p-10 max-w-7xl mx-auto">
+      <header className="mb-6 lg:mb-8">
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-white">Historial</h1>
         <p className="text-neutral-400 mt-1 text-sm">
           Revisa todos tus entrenamientos completados.
         </p>
       </header>
 
-      {/* Filtros */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 mb-6 inline-flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+      {/* Filtros — ocultos cuando estás viendo detalle en móvil */}
+      <div className={`
+        ${vistaMobile === 'detalle' ? 'hidden lg:flex' : 'flex'}
+        bg-neutral-900 border border-neutral-800 rounded-xl p-3 mb-6
+        flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto md:inline-flex
+      `}>
         <div className="flex bg-neutral-950 p-1 rounded-lg">
           <PillBtn active={tipoFiltro === 'dia'}  onClick={() => cambiarTipoFiltro('dia')}>Día</PillBtn>
           <PillBtn active={tipoFiltro === 'mes'}  onClick={() => cambiarTipoFiltro('mes')}>Mes</PillBtn>
@@ -139,109 +271,19 @@ export default function Historial() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Lista */}
-        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-          {sesionesFiltradas.length === 0 ? (
-            <div className="bg-neutral-900 border border-neutral-800 border-dashed rounded-xl p-12 text-center">
-              <div className="inline-flex w-10 h-10 items-center justify-center bg-neutral-800 rounded-lg mb-3">
-                <Inbox className="w-4 h-4 text-neutral-500" strokeWidth={2} />
-              </div>
-              <h3 className="text-sm font-medium text-white mb-1">Sin resultados</h3>
-              <p className="text-xs text-neutral-500">No hemos encontrado entrenamientos para esta fecha.</p>
-            </div>
-          ) : (
-            sesionesFiltradas.map((s) => {
-              const activa = sesionDetalle && sesionDetalle[0]?.id_sesion === s.id_sesion;
-              return (
-                <button
-                  key={s.id_sesion}
-                  onClick={() => verDetalle(s.id_sesion)}
-                  className={`
-                    w-full text-left bg-neutral-900 border rounded-xl p-5 transition-all
-                    ${activa ? 'border-sky-500/40' : 'border-neutral-800 hover:border-neutral-700'}
-                  `}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-medium text-neutral-400 capitalize">
-                      {new Date(s.fecha_inicio).toLocaleDateString(undefined, {
-                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                      })}
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px] bg-sky-500/10 text-sky-300 px-2 py-1 rounded-md font-medium border border-sky-500/20">
-                      <Clock className="w-3 h-3" strokeWidth={2.5} />
-                      {s.duracion_minutos ? `${s.duracion_minutos} min` : '0 min'}
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-semibold text-white">
-                    {s.nombre_rutina || 'Entrenamiento libre'}
-                  </h3>
-
-                  <p className="text-xs text-neutral-500 mt-1">
-                    {new Date(s.fecha_inicio).toLocaleTimeString(undefined, {
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </p>
-
-                  {s.notas && (
-                    <p className="text-xs text-neutral-400 italic mt-3 border-l-2 border-sky-500/30 pl-3">
-                      {s.notas}
-                    </p>
-                  )}
-                </button>
-              );
-            })
-          )}
+      {/* ══════════════════════════════════════════════════
+          ESCRITORIO (lg+): lista + detalle lado a lado
+          MÓVIL: solo una de las dos según vistaMobile
+          ══════════════════════════════════════════════════ */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-6">
+        {/* LISTA — visible en escritorio siempre, en móvil solo si vistaMobile==='lista' */}
+        <div className={vistaMobile === 'detalle' ? 'hidden lg:block' : 'block'}>
+          {renderLista()}
         </div>
 
-        {/* Detalle */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 min-h-[400px] sticky top-0 self-start">
-          {sesionDetalle ? (
-            <div>
-              <div className="flex items-center gap-2 mb-5">
-                <FileText className="w-4 h-4 text-sky-400" strokeWidth={2} />
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-300">
-                  Resumen de la sesión
-                </h3>
-              </div>
-
-              <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-1">
-                {[...new Set(sesionDetalle.map((i) => i.nombre_ejercicio))].map((nombreEj) => (
-                  <div key={nombreEj}>
-                    <h4 className="font-medium text-sky-400 text-sm mb-2">{nombreEj}</h4>
-                    <div className="grid grid-cols-1 gap-1.5">
-                      {sesionDetalle.filter((d) => d.nombre_ejercicio === nombreEj).map((serie) => (
-                        <div
-                          key={serie.id_serie}
-                          className="flex justify-between items-center bg-neutral-950 p-3 rounded-lg border border-neutral-800"
-                        >
-                          <span className="text-xs font-medium text-neutral-500">Serie {serie.num_serie}</span>
-                          <div className="text-right">
-                            <span className="font-semibold text-white text-sm">
-                              {formatearSerie(serie)}
-                            </span>
-                            {serie.rpe_fatiga && (
-                              <span className="block text-[11px] font-medium text-neutral-500 mt-0.5">
-                                RPE {serie.rpe_fatiga}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center text-neutral-500">
-              <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center mb-3">
-                <FileText className="w-4 h-4 text-neutral-600" strokeWidth={2} />
-              </div>
-              <p className="text-sm max-w-xs">Selecciona una sesión de la lista para ver su detalle.</p>
-            </div>
-          )}
+        {/* DETALLE — visible en escritorio siempre, en móvil solo si vistaMobile==='detalle' */}
+        <div className={vistaMobile === 'lista' ? 'hidden lg:block' : 'block'}>
+          {renderDetalle()}
         </div>
       </div>
     </div>

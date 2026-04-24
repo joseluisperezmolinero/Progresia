@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Search, Pencil, Eye, EyeOff, Plus, Save, Loader2, ChevronDown,
-  Dumbbell, Image as ImageIcon, Link2, X,
+  Dumbbell, Image as ImageIcon, Link2, X, ArrowLeft,
 } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:5000/api/admin';
@@ -106,6 +106,10 @@ export default function AdminEjerciciosPanel({ onError, onRefreshResumen }) {
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState(crearFormInicial());
 
+  /* En móvil alternamos entre 'lista' y 'form'.
+     En escritorio (xl+) se ignora — se ven ambos lado a lado. */
+  const [vistaMobile, setVistaMobile] = useState('lista');
+
   const token = localStorage.getItem('token');
   const headers = useMemo(
     () => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }),
@@ -158,6 +162,7 @@ export default function AdminEjerciciosPanel({ onError, onRefreshResumen }) {
     setModo('crear');
     setEjercicioEditando(null);
     setForm(crearFormInicial());
+    setVistaMobile('form');
     onError?.('');
   };
 
@@ -184,8 +189,11 @@ export default function AdminEjerciciosPanel({ onError, onRefreshResumen }) {
       demo_url: ejercicio.demo_url || '',
       equipamiento_tipo: ejercicio.equipamiento_tipo || 'gimnasio_completo',
     });
+    setVistaMobile('form');
     onError?.('');
   };
+
+  const volverALista = () => setVistaMobile('lista');
 
   const guardarEjercicio = async (e) => {
     e.preventDefault();
@@ -242,9 +250,12 @@ export default function AdminEjerciciosPanel({ onError, onRefreshResumen }) {
   };
 
   return (
-    <div className="grid xl:grid-cols-2 gap-6">
+    <div className="xl:grid xl:grid-cols-2 xl:gap-6">
       {/* ── LISTA ─────────────────────────────────────────── */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+      <div className={`
+        ${vistaMobile === 'form' ? 'hidden xl:block' : 'block'}
+        bg-neutral-900 border border-neutral-800 rounded-xl p-4 lg:p-6
+      `}>
         <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-5">
           <div>
             <h3 className="text-lg font-semibold text-white">Catálogo global</h3>
@@ -329,7 +340,7 @@ export default function AdminEjerciciosPanel({ onError, onRefreshResumen }) {
             No hay ejercicios que coincidan con los filtros.
           </div>
         ) : (
-          <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
+          <div className="space-y-2">
             {ejerciciosFiltrados.map((ejercicio) => {
               const activo = ejercicioEditando?.id_ejercicio === ejercicio.id_ejercicio;
               return (
@@ -397,7 +408,21 @@ export default function AdminEjerciciosPanel({ onError, onRefreshResumen }) {
       </div>
 
       {/* ── FORMULARIO ────────────────────────────────────── */}
-      <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
+      <div className={`
+        ${vistaMobile === 'lista' ? 'hidden xl:block' : 'block'}
+        bg-neutral-900 border border-neutral-800 rounded-xl p-4 lg:p-6
+        mt-6 xl:mt-0
+      `}>
+        {/* Botón volver — SOLO MÓVIL */}
+        <button
+          type="button"
+          onClick={volverALista}
+          className="xl:hidden flex items-center gap-2 text-sm text-sky-400 hover:text-sky-300 transition-colors mb-4 -ml-1"
+        >
+          <ArrowLeft className="w-4 h-4" strokeWidth={2} />
+          Volver al catálogo
+        </button>
+
         <div className="flex items-center justify-between gap-3 mb-5">
           <div>
             <h3 className="text-lg font-semibold text-white">
