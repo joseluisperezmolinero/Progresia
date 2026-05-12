@@ -1242,9 +1242,15 @@ const ajustarDuracion = ({
   const objetivoMin = Number(meta.minutos_sesion);
 
   // Banda de tolerancia
+  // Para fuerza con sesiones largas, ampliamos el techo superior porque
+  // los compuestos pesados (5x180s descanso) copan rápido los minutos y
+  // sin margen extra el plan se quedaría con 3-4 ejercicios.
+  const esFuerzaPesada = meta.objetivo === 'fuerza' && objetivoMin >= 60;
+  const margenSup = esFuerzaPesada ? 10 : 5;
+
   const banda = {
     min: Math.max(18, objetivoMin - 5),
-    max: objetivoMin + 5,
+    max: objetivoMin + margenSup,
   };
   if (meta.nivel === 'principiante') { banda.min -= 2; banda.max -= 1; }
 
@@ -1430,18 +1436,21 @@ const generarPreviewDia = (meta, catalogo) => {
     usoPlanMap, usoFamiliaMap, modoCardio,
   });
 
+  const dias = [{
+    nombre_dia:        nombreDia,
+    posicion_plan:     1,
+    minutos_estimados: ajuste.minutos_estimados,
+    ejercicios:        ajuste.ejercicios,
+  }];
+
   return {
     meta,
     plan: {
       nombre:    `${nombreDia} · ${NOMBRE_OBJETIVO[meta.objetivo]} · ${meta.minutos_sesion} min`,
       tipo_plan: 'dia',
-      dias: [{
-        nombre_dia:        nombreDia,
-        posicion_plan:     1,
-        minutos_estimados: ajuste.minutos_estimados,
-        ejercicios:        ajuste.ejercicios,
-      }],
+      dias,
     },
+    warnings: generarAdvertencias(meta, dias),
   };
 };
 
@@ -1496,10 +1505,66 @@ const generarPreviewSemana = (meta, catalogo) => {
       tipo_plan: 'semana',
       dias:      diasGenerados,
     },
+    warnings: generarAdvertencias(meta, diasGenerados),
   };
 };
 
-// ─── 12. ENTRY POINT ──────────────────────────────────────────────────────
+// ─── 11.5. ADVERTENCIAS POST-GENERACIÓN ───────────────────────────────────
+
+/**
+ * Inspecciona el plan generado y devuelve advertencias "soft" para que el
+ * usuario sepa que el resultado tiene alguna limitación. No son errores:
+ * el plan funciona igual, pero conviene avisarle.
+ */
+const generarAdvertencias = (meta, dias) => {
+  const warnings = [];
+
+  // Aviso 1: ejercicios repetidos a lo largo de la semana
+  if (dias.length >= 2) {
+    const conteoIds = new Map();
+    dias.forEach(dia => {
+      dia.ejercicios.forEach(ej => {
+        conteoIds.set(ej.id_ejercicio, (conteoIds.get(ej.id_ejercicio) || 0) + 1);
+      });
+    });
+    const repetidos = [...conteoIds.entries()].filter(([, c]) => c >= 3).length;
+    if (repetidos >= 2) {
+      warnings.push(
+        'Algunos ejercicios se repiten varias veces en la semana porque tu catálogo activo es limitado. ' +
+        'Activa más ejercicios desde el panel de admin para mayor variedad.'
+      );
+    }
+  }
+
+  // Aviso 2: la sesión quedó significativamente más corta de lo pedido
+  const objetivoMin = Number(meta.minutos_sesion);
+  const cortos = dias.filter(d => d.minutos_estimados < objetivoMin - 8);
+  if (cortos.length > 0) {
+    warnings.push(
+      `${cortos.length === 1 ? 'Un día quedó' : `${cortos.length} días quedaron`} ` +
+      `algo más cortos de lo pedido por falta de ejercicios compatibles con tu equipamiento.`
+    );
+  }
+
+  // Aviso 3: más_cardio elegido sin incluir cardio
+  if (meta.modo === 'semana' && meta.preferencia === 'mas_cardio' && !meta.incluye_cardio) {
+    warnings.push(
+      'Has elegido "Más cardio" como preferencia, pero la opción "Incluir cardio" está desactivada. ' +
+      'Activa "Incluir cardio" para que la preferencia surta efecto.'
+    );
+  }
+
+  // Aviso 4: días con pocos ejercicios (puede pasar en fuerza con compuestos pesados)
+  const pocosEj = dias.filter(d => d.ejercicios.length <= 4 && d.minutos_estimados >= objetivoMin - 5);
+  if (pocosEj.length > 0 && meta.objetivo === 'fuerza') {
+    warnings.push(
+      'En fuerza, los compuestos pesados con descansos largos llenan rápido la sesión. ' +
+      'Los días con pocos ejercicios son normales: lo importante es el volumen total de series.'
+    );
+  }
+
+  return warnings;
+};
 
 /**
  * Verifica que haya al menos 2 ejercicios compatibles para el grupo principal
